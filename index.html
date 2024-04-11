@@ -1,5 +1,41 @@
-<html>
-  <body>
-    Hello World!!!
-  </body>
+<!DOCTYPE html>
+
+<!-- This is a comment -->
+
+<html lang="en">
+    <head>
+	<meta charset="UTF-8">
+        <link href="style.css" rel="stylesheet">
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+	<!-- meta name makes webpage mobile friendly -->
+	<meta name="viewport" content="initial-scale=1, width=device-width">
+        <title>
+            Anubian's Planet
+        </title>
+    </head>
+    <body>
+
+	    <nav class="navbar">
+		    <ul>
+			    <li style="float:left; font-size:25px"><a href="index.html">Home</a></li>
+			    <li style="float:left; font-size:25px"><div class="dropdown">
+				    <a class="dropbtn" href="#">Categories 
+				    <i class="fa fa-chevron-down"></i></a>
+			    <div class="dropdown-content">
+				    <a href="https://0xanubian.github.io/categories/rev/index.html">Rev</a>
+				    <a href="https://0xanubian.github.io/categories/pwn/index.html">pwn</a>
+			    </div>
+			    </div>
+			    </li>
+			    <li style="float:right; font-size:25px"><a href="aboutme.html">About Me</a></li>
+		    </ul>
+	    </nav>
+
+	    <main>
+		    <h1>Featured Posts</h1>
+		    <p><span style="color:white; font-size:20px;">[24-03-2023]</span><a href="categories/pwn/protostar/stack0.html">Protostar stack0 writeup</a></p>
+		    <p><span style="color:white; font-size:20px;">[22-03-2023]</span><a href="categories/rev/Reverse_Engineering0x00.html">Reverse Enginnering 0x00: Intro</a></p>
+	    </main>
+    </body>
 </html>
+
