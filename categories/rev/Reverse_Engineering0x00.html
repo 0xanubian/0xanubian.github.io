@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <title>Intro to Reverse Engineering</title>
+  <style>
+    html {
+      color: #98a3ad;;
+      background-color: #272a2d;
+    }
+    body {
+      margin: 0 auto;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 00px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+	    font-size:25px;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible;
+                 background-color: #000000;
+		 font-size:25px;
+                }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+
+    .shell {
+      background-color: #000000;
+	font-size:25px;
+    }
+    .navbar ul {
+	list-style-type: none;
+	background-color: #414544;
+	padding: 0px;
+	margin: 0px;
+	overflow: hidden;
+}
+
+.navbar a{
+	color: #5891ad;
+	text-decoration: none;
+	padding: 15px;
+	display: block;
+	text-align: centre;
+}
+.dropdown {
+	float: left;
+	overflow: hidden;
+}
+
+.dropdown .dropbtn {
+	color: #5891ad;
+	background-color: inherit;
+	text-decoration: none;
+	padding: 15px;
+	display: block;
+	text-align: center;
+}
+
+.navbar a:hover, .dropdown:hover .dropbtn {
+	color: white;
+	background-color: #24244d;
+}
+.dropdown-content {
+	display: none;
+	position: absolute;
+	background-color: #2d2f30;
+	color: #5891ad;
+	min-width: 160px;
+	box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+	z-index: 1;
+}
+
+.dropdown-content a {
+	float: none;
+  	color: #5891ad;
+  	padding: 12px 16px;
+  	text-decoration: none;
+  	display: block;
+  	text-align: left;
+}
+
+.dropdown-content a:hover {
+	color: white;
+  	background-color: #24244d;
+}
+
+.dropdown:hover .dropdown-content {
+  	display: block;
+}
+  </style>
+</head>
+<body>
+	<nav class="navbar">
+		    <ul>
+			    <li style="float:left"><a href="https://0xanubian.github.io/index.html">Home</a></li>
+			    <li style="float:left"><div class="dropdown">
+				    <a class="dropbtn" href="#">Categories
+				    <i class="fa fa-chevron-down"></i></a>
+			    <div class="dropdown-content">
+				    <a href="https://0xanubian.github.io/categories/rev/index.html">Rev</a>
+				    <a href="https://0xanubian.github.io/categories/pwn/index.html">pwn</a>
+			    </div>
+			    </div>
+			    </li>
+			    <li style="float:right"><a href="https://0xanubian.github.io/aboutme.html">About Me</a></li>
+		    </ul>
+	    </nav>
+<header id="title-block-header">
+<h1 class="title">Intro to Reverse Engineering</h1>
+</header>
+<h2 id="for-whom-this-blog-series-is">For whom this blog series is</h2>
+<ul>
+<li>Security Researcher: learning reverse engineering will make you
+understand how executables work underneath. And it will help you in
+finding vulnerabilities.</li>
+<li>Malware Analyst: you can reverse engineer a malware to find out how
+it works and protect your organisation.</li>
+<li>Developers: learning reverse engineering will help you in debugging
+your code more easily.</li>
+</ul>
+<h2 id="prerequisite">Prerequisite</h2>
+<ul>
+<li>You should be comfortable in programming languages like C, C++ and
+Python.</li>
+<li>You should understand assembly basics
+<ul>
+<li>resources to learn assembly are:</li>
+<li><a href="https://cdrdv2.intel.com/v1/dl/getContent/671200" style="color:#55bde2;">intel
+developer manual</a></li>
+<li><a href="https://gpfault.net/posts/asm-tut-0.txt.html" style="color:#55bde2;">gpfault
+x86-64 assembly series</a></li>
+<li><a
+href="https://guyinatuxedo.github.io/01-intro_assembly/assembly/index.html" style="color:#55bde2;">nightmare</a></li>
+</ul></li>
+</ul>
+<h2 id="tools-used-in-this-series">Tools used in this series</h2>
+<ol type="1">
+<li>GDB: the GNU debugger allows you to see what is going on inside a
+program while it executes or what another program was doing at the
+moment it crashed. You can install GDB by apt:</li>
+</ol>
+<pre class="shell"><code>sudo apt install gdb</code></pre>
+<ol start="2" type="1">
+<li>Radare2: radare2 is UNIX-like reverse engineering framework and
+command-line toolset. We will use it do disassemble and debug our target
+program.</li>
+</ol>
+<p>You can install radare2 from <a
+href="https://github.com/radareorg/radare2" style="color:#55bde2;">here</a>. you can learn how
+to use radare2 from <a href="https://book.rada.re/" style="color:#55bde2;">The Official Radare2
+Book</a></p>
+<ol start="3" type="1">
+<li>Ghidra: Ghidra is a free and open source reverse engineering tool
+developed by the National Security Agency of the United States. We will
+use it to disassemble and decompile our target program.</li>
+</ol>
+<p>You can install ghidra from <a
+href="https://github.com/NationalSecurityAgency/ghidra/releases" style="color:#55bde2;">here</a>.</p>
+<h2 id="getting-started">Getting started</h2>
+<p>For the starter we will make our own license check program in C and
+reverse it.</p>
+<p>Make a C file named license.c</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;stdio.h&gt;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;string.h&gt;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> main<span class="op">(</span><span class="dt">int</span> argc<span class="op">,</span> <span class="dt">char</span> <span class="op">*</span>argv<span class="op">[])</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="op">{</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>argc <span class="op">!=</span> <span class="dv">2</span><span class="op">){</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>        printf<span class="op">(</span><span class="st">&quot;usage: license &lt;key&gt;</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">char</span> <span class="op">*</span>rkey <span class="op">=</span> <span class="st">&quot;key{1234AAABBBCCC}&quot;</span><span class="op">;</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>strcmp<span class="op">(</span>argv<span class="op">[</span><span class="dv">1</span><span class="op">],</span> rkey<span class="op">)</span> <span class="op">==</span> <span class="dv">0</span><span class="op">){</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>        printf<span class="op">(</span><span class="st">&quot;[+] Access Granted :)</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>        printf<span class="op">(</span><span class="st">&quot;[-] Access Denied :(</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Now compile the code using:</p>
+<pre class="shell"><code>gcc license.c -o license</code></pre>
+<p>Our goal is to know the key or bypass the key checking code.</p>
+<h3 id="nd-method">1st method</h3>
+<p>The first and simplest method to get the key is run the
+<strong>strings</strong> command on our license program.</p>
+<pre class="shell"><code>strings license</code></pre>
+<p>We get a lot of strings but by scrolling the output we see</p>
+<pre><code>usage: license &lt;key&gt;
+key{1234AAABBBCCC}
+[+] Access Granted :)
+[-] Access Deied :(</code></pre>
+<p>And now we know that <code>key{1234AAABBBCCC}</code> is our key.</p>
+<h3 id="nd-method">2nd method</h3>
+<p>In second method we will debug the <code>license</code> program using
+gdb.</p>
+<pre class="shell"><code>gdb license</code></pre>
+<p>now we are given a gdb prompt</p>
+<pre class="shell"><code>(gdb) set disassembly-flavor intel</code></pre>
+<p>With the first command we set the disassembly flavor from
+<code>att</code> to <code>intel</code> which i prefer more for visual
+aesthetics.</p>
+<p>Now we will disassemble main function with</p>
+<pre class="shell"><code>(gdb) disassemble main
+Dump of assembler code for function main:
+   0x0000000000001149 &lt;+0&gt;: push   rbp
+   0x000000000000114a &lt;+1&gt;: mov    rbp,rsp
+   0x000000000000114d &lt;+4&gt;: sub    rsp,0x20
+   0x0000000000001151 &lt;+8&gt;: mov    DWORD PTR [rbp-0x14],edi
+   0x0000000000001154 &lt;+11&gt;:    mov    QWORD PTR [rbp-0x20],rsi
+   0x0000000000001158 &lt;+15&gt;:    cmp    DWORD PTR [rbp-0x14],0x2
+   0x000000000000115c &lt;+19&gt;:    je     0x1174 &lt;main+43&gt;
+   0x000000000000115e &lt;+21&gt;:    lea    rax,[rip+0xe9f]        # 0x2004
+   0x0000000000001165 &lt;+28&gt;:    mov    rdi,rax
+   0x0000000000001168 &lt;+31&gt;:    call   0x1030 &lt;puts@plt&gt;
+   0x000000000000116d &lt;+36&gt;:    mov    eax,0x1
+   0x0000000000001172 &lt;+41&gt;:    jmp    0x11c7 &lt;main+126&gt;
+   0x0000000000001174 &lt;+43&gt;:    lea    rax,[rip+0xe9e]        # 0x2019
+   0x000000000000117b &lt;+50&gt;:    mov    QWORD PTR [rbp-0x8],rax
+   0x000000000000117f &lt;+54&gt;:    mov    rax,QWORD PTR [rbp-0x20]
+   0x0000000000001183 &lt;+58&gt;:    add    rax,0x8
+   0x0000000000001187 &lt;+62&gt;:    mov    rax,QWORD PTR [rax]
+   0x000000000000118a &lt;+65&gt;:    mov    rdx,QWORD PTR [rbp-0x8]
+   0x000000000000118e &lt;+69&gt;:    mov    rsi,rdx
+   0x0000000000001191 &lt;+72&gt;:    mov    rdi,rax
+   0x0000000000001194 &lt;+75&gt;:    call   0x1040 &lt;strcmp@plt&gt;
+   0x0000000000001199 &lt;+80&gt;:    test   eax,eax
+   0x000000000000119b &lt;+82&gt;:    jne    0x11b3 &lt;main+106&gt;
+   0x000000000000119d &lt;+84&gt;:    lea    rax,[rip+0xe88]        # 0x202c
+   0x00000000000011a4 &lt;+91&gt;:    mov    rdi,rax
+   0x00000000000011a7 &lt;+94&gt;:    call   0x1030 &lt;puts@plt&gt;
+   0x00000000000011ac &lt;+99&gt;:    mov    eax,0x0
+   0x00000000000011b1 &lt;+104&gt;:   jmp    0x11c7 &lt;main+126&gt;
+   0x00000000000011b3 &lt;+106&gt;:   lea    rax,[rip+0xe88]        # 0x2042
+   0x00000000000011ba &lt;+113&gt;:   mov    rdi,rax
+   0x00000000000011bd &lt;+116&gt;:   call   0x1030 &lt;puts@plt&gt;
+   0x00000000000011c2 &lt;+121&gt;:   mov    eax,0x1
+   0x00000000000011c7 &lt;+126&gt;:   leave
+   0x00000000000011c8 &lt;+127&gt;:   ret
+End of assembler dump.</code></pre>
+<p>We see a lot of assembly code but we care about only few lines of
+code.</p>
+<pre class="shell"><code>0x0000000000001158 &lt;+15&gt;:   cmp    DWORD PTR [rbp-0x14],0x2</code></pre>
+<p>Here we compare the number of arguments with 0x2(integer 2). If the
+compare is true we jump to <code>&lt;main+43&gt;</code>
+i.e. <code>0x0000000000001174</code> else we <code>puts(print)</code>
+something on the screen and the leave the program</p>
+<pre class="shell"><code>   0x0000000000001168 &lt;+31&gt;:    call   0x1030 &lt;puts@plt&gt;
+   0x0000000000001172 &lt;+41&gt;:    jmp    0x11c7 &lt;main+126&gt;
+   0x00000000000011c7 &lt;+126&gt;:   leave
+</code></pre>
+<p>Now at <code>0x0000000000001194</code> we call
+<code>strcmp</code></p>
+<pre class="shell"><code>   0x0000000000001194 &lt;+75&gt;:    call   0x1040 &lt;strcmp@plt&gt;</code></pre>
+<p>then test <code>eax</code> with <code>eax</code></p>
+<pre class="shell"><code>   0x0000000000001199 &lt;+80&gt;:    test   eax,eax
+   0x000000000000119b &lt;+82&gt;:    jne    0x11b3 &lt;main+106&gt;</code></pre>
+<p>If the strcmp is not successful we jump to
+<code>&lt;main+106&gt;</code> i.e. <code>0x00000000000011b3</code></p>
+<p>Else we print something on the screen and leave the programm</p>
+<pre class="shell"><code>   0x00000000000011a7 &lt;+94&gt;:    call   0x1030 &lt;puts@plt&gt;</code></pre>
+<p><strong>Now that we understand the assembly code lets bypass the
+strcmp</strong></p>
+<ol type="1">
+<li>set break point at main run with argument <code>AAAA</code> and set
+a break point at the last strcmp.</li>
+</ol>
+<pre class="shell"><code>(gdb) break *main
+Breakpoint 1 at 0x1149
+(gdb) r AAAA
+Breakpoint 1, 0x0000000000001149 in main ()
+(gdb) break *0x0000000000001194
+Breakpoint 2, 0x0000000000001194 in main ()</code></pre>
+<ol start="2" type="1">
+<li>continue to 2nd break point with <code>c</code> and check the
+registers. <code>ni</code> means next instruction. For more about gdb
+check <a
+href="https://www.sourceware.org/gdb/documentation/">here</a>.</li>
+</ol>
+<pre class="shell"><code>(gdb) c
+Continuing.
+
+Breakpoint 2, 0x0000000000001194 in main ()
+(gdb) info registers
+rax            0x7fffffffe4a1      140737488348321
+rbx            0x7fffffffe1a8      140737488347560
+rcx            0x555555557dd8      93824992247256
+rdx            0x555555556019      93824992239641
+rsi            0x555555556019      93824992239641
+rdi            0x7fffffffe4a1      140737488348321
+rbp            0x7fffffffe090      0x7fffffffe090
+rsp            0x7fffffffe070      0x7fffffffe070
+r8             0x0                 0
+r9             0x7ffff7fcfaf0      140737353939696
+r10            0x7ffff7fcb858      140737353922648
+r11            0x7ffff7fe1f80      140737354014592
+r12            0x0                 0
+r13            0x7fffffffe1c0      140737488347584
+r14            0x555555557dd8      93824992247256
+r15            0x7ffff7ffd000      140737354125312
+rip            0x555555555191      0x555555555191 &lt;main+72&gt;
+eflags         0x212               [ AF IF ]
+cs             0x33                51
+ss             0x2b                43
+ds             0x0                 0
+es             0x0                 0
+fs             0x0                 0
+gs             0x0                 0
+
+(gdb) ni
+0x0000000000001199 in main ()
+(gdb) info registers
+rax            0xffffffd6          4294967254
+rbx            0x7fffffffe1a8      140737488347560
+rcx            0x6b                107
+rdx            0x555555556019      93824992239641
+rsi            0x555555556019      93824992239641
+rdi            0x7fffffffe4a1      140737488348321
+rbp            0x7fffffffe090      0x7fffffffe090
+rsp            0x7fffffffe070      0x7fffffffe070
+r8             0x0                 0
+r9             0x7ffff7fcfaf0      140737353939696
+r10            0x7ffff7de8e80      140737351945856
+r11            0x7ffff7f24b30      140737353239344
+r12            0x0                 0
+r13            0x7fffffffe1c0      140737488347584
+r14            0x555555557dd8      93824992247256
+r15            0x7ffff7ffd000      140737354125312
+rip            0x555555555199      0x555555555199 &lt;main+80&gt;
+eflags         0x293               [ CF AF SF IF ]
+cs             0x33                51
+ss             0x2b                43
+ds             0x0                 0
+es             0x0                 0
+fs             0x0                 0
+gs             0x0                 0</code></pre>
+<ol start="3" type="1">
+<li>we know that at <code>&lt;main+80&gt;</code> we do an instruction
+<code>test eax,eax</code>. the <code>test</code> instruction perform a
+bitwise <code>and</code> on two operands. <code>test</code> sets the
+zero flag when result of and operation is zero. And if zero flag is not
+set then our program exits with output <code>Access Denied</code>. So
+for zero flag to be set eax should be zero(0x0).</li>
+</ol>
+<pre class="shell"><code>(gdb) set $eax=0x0
+(gdb) c
+Continuing.
+[+] Access Granted :)
+[Inferior 1 (process 4493) exited normally]</code></pre>
+<p><strong>Congrats you have successfully bypassed the strcmp
+instruction.</strong></p>
+<h3 id="rd-method">3rd method</h3>
+<p>In this method we will examine the registers in main() to get the
+string</p>
+<pre class="shell"><code>gdb() break *main
+gdb() r
+gdb() break *0x000000000000117b
+gdb() c</code></pre>
+<p>by examining the assembly we know that at 0x000000000000117b our
+string is moved at the memory location at rbp-0x8 - 0x000000000000117b
+&lt;+50&gt;: mov QWORD PTR [rbp-0x8],rax</p>
+<p>so we can examine our registers with <code>x/b</code>. the string is
+at rax so we:</p>
+<pre class="shell"><code>0x000055555555517b in main ()
+(gdb) x/b $rax
+0x555555556019: &quot;key{1234AAABBBCCC}&quot;</code></pre>
+<p><strong>And you solved the license check program by three different
+method</strong></p>
+<h3 id="try-by-yourself">Try by yourself</h3>
+<p>You can always make different kinds of license checking algorithms
+and try to reverse it.</p>
+<p>A good place to find such programs is <a
+href="https://crackmes.one/lasts/1" style="color:#55bde2;">crackme.one</a>.</p>
+<p>In the next part we will solve some crackmes.</p>
+</body>
+</html>
+

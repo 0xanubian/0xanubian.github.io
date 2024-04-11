@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>stack0</title>
+  <style>
+    html {
+      color: #fdfdfd;
+      background-color: #272a2d;
+    }
+    body {
+      margin: 0 auto;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 00px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+	    font-size:25px;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+    .navbar ul {
+	list-style-type: none;
+	background-color: #414544;
+	padding: 0px;
+	margin: 0px;
+	overflow: hidden;
+}
+
+.navbar a{
+	color: #5891ad;
+	text-decoration: none;
+	padding: 15px;
+	display: block;
+	text-align: center;
+}
+
+.dropdown {
+	float: left;
+	overflow: hidden;
+}
+
+.dropdown .dropbtn {
+	color: #5891ad;
+	background-color: inherit;
+	text-decoration: none;
+	padding: 15px;
+	display: block;
+	text-align: centre;
+}
+.navbar a:hover, dropdown:hover .dropbtn {
+	color: white;
+	background-color: #24244d;
+}
+.dropdown-content {
+	display: none;
+	position: absolute;
+	background-color: #2d2f30;
+	color: #5891ad;
+	min-width: 160px;
+	box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+	z-index: 1;
+}
+
+.dropdown-content a {
+	float: none;
+  	color: #5891ad;
+  	padding: 12px 16px;
+  	text-decoration: none;
+  	display: block;
+  	text-align: left;
+}
+
+.dropdown-content a:hover {
+	color: white;
+  	background-color: #24244d;
+}
+
+.dropdown:hover .dropdown-content {
+  	display: block;
+}
+  </style>
+</head>
+<body>
+	<nav class="navbar">
+		    <ul>
+			    <li style="float:left"><a href="https://0xanubian.github.io/index.html">Home</a></li>
+			    <li style="float:left"><div class="dropdown">
+				    <a class="dropbtn" href="#">Categories
+				    <i class="fa fa-chevron-down"></i></a>
+			    <div class="dropdown-content">
+				    <a href="https://0xanubian.github.io/categories/rev/index.html">Rev</a>
+				    <a href="https://0xanubian.github.io/categories/pwn/index.html">pwn</a>
+			    </div>
+			    </div>
+			    </li>
+			    <li style="float:right"><a href="https://an5human22.github.io/aboutme.html">About Me</a></li>
+		    </ul>
+	    </nav>
+<header id="title-block-header">
+<h1 class="title">stack0</h1>
+</header>
+<h2 id="about-the-challenge">about the challenge</h2>
+<ul>
+<li>source of the challenge is <a
+href="https://exploit.education/protostar/stack-zero/" style="color: #55bde2;">exploit
+education</a></li>
+<li>the challenge is in the /opt/protostar/bin/stack0 </li>
+  <strong>source code</strong>
+</ul>
+<div class="sourceCode" id="cb1"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;stdlib.h&gt;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;unistd.h&gt;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;stdio.h&gt;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> main<span class="op">(</span><span class="dt">int</span> argc<span class="op">,</span> <span class="dt">char</span> <span class="op">**</span>argv<span class="op">)</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="op">{</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">volatile</span> <span class="dt">int</span> modified<span class="op">;</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">char</span> buffer<span class="op">[</span><span class="dv">64</span><span class="op">];</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  modified <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  gets<span class="op">(</span>buffer<span class="op">);</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span><span class="op">(</span>modified <span class="op">!=</span> <span class="dv">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>      printf<span class="op">(</span><span class="st">&quot;you have changed the &#39;modified&#39; variable</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>      printf<span class="op">(</span><span class="st">&quot;Try again?</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">);</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h2 id="solution">solution</h2>
+
+<p>disassembly of main</p>
+<pre><code>0x080483f4 &lt;main+0&gt;:    push   ebp
+0x080483f5 &lt;main+1&gt;:    mov    ebp,esp
+0x080483f7 &lt;main+3&gt;:    and    esp,0xfffffff0
+0x080483fa &lt;main+6&gt;:    sub    esp,0x60
+0x080483fd &lt;main+9&gt;:    mov    DWORD PTR [esp+0x5c],0x0
+0x08048405 &lt;main+17&gt;:   lea    eax,[esp+0x1c]
+0x08048409 &lt;main+21&gt;:   mov    DWORD PTR [esp],eax
+0x0804840c &lt;main+24&gt;:   call   0x804830c &lt;gets@plt&gt;
+0x08048411 &lt;main+29&gt;:   mov    eax,DWORD PTR [esp+0x5c]
+0x08048415 &lt;main+33&gt;:   test   eax,eax
+0x08048417 &lt;main+35&gt;:   je     0x8048427 &lt;main+51&gt;
+0x08048419 &lt;main+37&gt;:   mov    DWORD PTR [esp],0x8048500
+0x08048420 &lt;main+44&gt;:   call   0x804832c &lt;puts@plt&gt;
+0x08048425 &lt;main+49&gt;:   jmp    0x8048433 &lt;main+63&gt;
+0x08048427 &lt;main+51&gt;:   mov    DWORD PTR [esp],0x8048529
+0x0804842e &lt;main+58&gt;:   call   0x804832c &lt;puts@plt&gt;
+0x08048433 &lt;main+63&gt;:   leave
+0x08048434 &lt;main+64&gt;:   ret</code></pre>
+<ol type="1">
+<li>ebp is pushed</li>
+<li>esp is moved into ebp</li>
+<li>esp is and with 0xfffffff0. It will convert the last 4 bit of esp to
+0.</li>
+<li>esp - 0x60. Now the stack pointer points lower than base
+pointer</li>
+<li>This creates a stack frame where variables can be stored</li>
+<li>0x0 is moved to the memory location at esp+0x5c</li>
+<li>we suspect that this is our variable that we will have to
+modify</li>
+<li>gets is called</li>
+<li>what is stored in esp+0x5c is moved to eax</li>
+<li>test instruction is done on eax. test set the zero flag when result
+of <em>and</em> operation is zero.</li>
+<li>if zero flag is turned on we jump to <strong>0x08048427</strong> and
+print ““you have changed the modified variable”</li>
+<li>otherwise <strong>try again</strong> is printed.</li>
+<li>For <em>pwning</em> this challenge we have to overflow the stack and
+change the value at esp+0x5c.</li>
+</ol>
+<h2 id="pwning">pwning</h2>
+<ol type="1">
+<li><p>set break * at gets and after gets</p></li>
+<li><p>r</p></li>
+<li><p>Now examine whats on the screen</p></li>
+<li><p>c</p></li>
+<li><p>Type some AAAAA… and see the stack</p></li>
+<li><p>Enter the command: x/wx $esp+0x5c in gdb(we will se it is 0xbffffcac: and it is set to
+0x00000000).</p></li>
+<li><p>We will will have to overflow the stack so that it is something
+else</p></li>
+<li><p>By calculating how much bytes we have to enter i found 4+16x4 A
+is fine(it is 68)</p></li>
+<li><p>But 65 is also fine. I guess even if we overflow to the start of
+0xbffffcac our job is done.</p></li>
+<li><p>n</p></li>
+<li><p>n</p></li>
+<li><p>Until we are at the je instruction and see the magic. the eflags
+change from 0x200246 to 0x200206.</p></li>
+<li><p><strong>Notice that the buffer could store 64 chars and we overflowed it by 65 chars.</strong></p></li>
+</ol>
