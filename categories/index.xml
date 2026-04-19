@@ -1,0 +1,21 @@
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+        <title>Categories - Category - Anubian&#39;s Planet</title>
+        <link>https://0xanubian.github.io/categories/</link>
+        <description>Categories - Category - Anubian&#39;s Planet</description>
+        <generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Sun, 19 Apr 2026 00:00:00 &#43;0000</lastBuildDate><atom:link href="https://0xanubian.github.io/categories/" rel="self" type="application/rss+xml" /><item>
+    <title>Binary Exploitation</title>
+    <link>https://0xanubian.github.io/categories/binary-exploitation/</link>
+    <pubDate>Sun, 19 Apr 2026 00:00:00 &#43;0000</pubDate><author>
+        <name>Anubian</name>
+    </author><guid>https://0xanubian.github.io/categories/binary-exploitation/</guid>
+    <description><![CDATA[]]></description>
+</item><item>
+    <title>Reverse Engineering</title>
+    <link>https://0xanubian.github.io/categories/reverse-engineering/</link>
+    <pubDate>Sun, 19 Apr 2026 00:00:00 &#43;0000</pubDate><author>
+        <name>Anubian</name>
+    </author><guid>https://0xanubian.github.io/categories/reverse-engineering/</guid>
+    <description><![CDATA[]]></description>
+</item></channel>
+</rss>

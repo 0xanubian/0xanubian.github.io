@@ -1,0 +1,13 @@
+<urlset
+    xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+    xmlns:xhtml="http://www.w3.org/1999/xhtml"
+    ><url>
+            <loc>https://0xanubian.github.io/about/</loc><lastmod>2026-04-20T00:07:43&#43;05:30</lastmod></url><url>
+            <loc>https://0xanubian.github.io/</loc><lastmod>2026-04-20T00:07:43&#43;05:30</lastmod></url><url>
+            <loc>https://0xanubian.github.io/categories/binary-exploitation/</loc><lastmod>2026-04-19T00:00:00&#43;00:00</lastmod></url><url>
+            <loc>https://0xanubian.github.io/categories/</loc><lastmod>2026-04-19T00:00:00&#43;00:00</lastmod></url><url>
+            <loc>https://0xanubian.github.io/posts/control-flow-hijack-via-crafted-vtable-entry/</loc><lastmod>2026-04-19T00:00:00&#43;00:00</lastmod></url><url>
+            <loc>https://0xanubian.github.io/posts/</loc><lastmod>2026-04-19T00:00:00&#43;00:00</lastmod></url><url>
+            <loc>https://0xanubian.github.io/categories/reverse-engineering/</loc><lastmod>2026-04-19T00:00:00&#43;00:00</lastmod></url><url>
+            <loc>https://0xanubian.github.io/posts/reverse-engineering-a-risc-v-binary-picoctf-riscy-business/</loc><lastmod>2026-04-19T00:00:00&#43;00:00</lastmod></url><url>
+            <loc>https://0xanubian.github.io/tags/</loc></url></urlset>
