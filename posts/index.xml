@@ -1,22 +1,2 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
-    <channel>
-        <title>All Posts - Anubian&#39;s Planet</title>
-        <link>https://0xanubian.github.io/posts/</link>
-        <description>All Posts | Anubian&#39;s Planet</description>
-        <generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Sun, 19 Apr 2026 00:00:00 &#43;0000</lastBuildDate><atom:link href="https://0xanubian.github.io/posts/" rel="self" type="application/rss+xml" /><item>
-    <title>Control Flow Hijack via Crafted VTable Entry</title>
-    <link>https://0xanubian.github.io/posts/control-flow-hijack-via-crafted-vtable-entry/</link>
-    <pubDate>Sun, 19 Apr 2026 00:00:00 &#43;0000</pubDate><author>
-        <name>Anubian</name>
-    </author><guid>https://0xanubian.github.io/posts/control-flow-hijack-via-crafted-vtable-entry/</guid>
-    <description><![CDATA[<p>This challenge is from the <a href="https://ctftime.org/event/2671" target="_blank" rel="noopener noreferrer">Breach CTF</a> hosted by IITBreachers. It was a PWN challenge and it had a <code>cpp</code> source code and a binary file.</p>
-<p>We craft a fake vtable entry to change the control flow to get the flag.</p>]]></description>
-</item><item>
-    <title>Reverse engineering a RISC-V binary picoCTF riscy business</title>
-    <link>https://0xanubian.github.io/posts/reverse-engineering-a-risc-v-binary-picoctf-riscy-business/</link>
-    <pubDate>Sun, 19 Apr 2026 00:00:00 &#43;0000</pubDate><author>
-        <name>Anubian</name>
-    </author><guid>https://0xanubian.github.io/posts/reverse-engineering-a-risc-v-binary-picoctf-riscy-business/</guid>
-    <description><![CDATA[<p>Reverse Engineering a RISC-V binary with ghidra, qemu and GDB. This is the writeup for the &ldquo;Riscy business&rdquo; challenge in picoCTF website.</p>]]></description>
-</item></channel>
-</rss>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>All Posts - Anubian's Planet</title><link>https://0xanubian.github.io/posts/</link><description>All Posts | Anubian's Planet</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 12 Oct 2026 01:00:00 +0530</lastBuildDate><atom:link href="https://0xanubian.github.io/posts/" rel="self" type="application/rss+xml"/><item><title>Making a dynamic memory allocator: CSAPP's malloc lab</title><link>https://0xanubian.github.io/posts/making-a-dynamic-memory-allocator/</link><pubDate>Mon, 12 Oct 2026 01:00:00 +0530</pubDate><author><name>Anubian</name></author><guid>https://0xanubian.github.io/posts/making-a-dynamic-memory-allocator/</guid><description><![CDATA[<p>This is a writeup for CSAPP&rsquo;s malloc lab where I made my own dynamic memory allocator by implementing <code>malloc()</code>, <code>free()</code> and <code>realloc()</code>.</p>]]></description></item><item><title>Control Flow Hijack via Crafted VTable Entry</title><link>https://0xanubian.github.io/posts/control-flow-hijack-via-crafted-vtable-entry/</link><pubDate>Sun, 19 Apr 2026 00:00:00 +0530</pubDate><author><name>Anubian</name></author><guid>https://0xanubian.github.io/posts/control-flow-hijack-via-crafted-vtable-entry/</guid><description><![CDATA[<p>This challenge is from the <a href="https://ctftime.org/event/2671" target="_blank" rel="noopener noreferrer">Breach CTF</a> hosted by IITBreachers. It was a PWN challenge and it had a <code>cpp</code> source code and a binary file.</p>
+<p>We craft a fake vtable entry to change the control flow to get the flag.</p>]]></description></item><item><title>Reverse engineering a RISC-V binary picoCTF riscy business</title><link>https://0xanubian.github.io/posts/reverse-engineering-a-risc-v-binary-picoctf-riscy-business/</link><pubDate>Sun, 19 Apr 2026 00:00:00 +0530</pubDate><author><name>Anubian</name></author><guid>https://0xanubian.github.io/posts/reverse-engineering-a-risc-v-binary-picoctf-riscy-business/</guid><description><![CDATA[<p>Reverse Engineering a RISC-V binary with ghidra, qemu and GDB. This is the writeup for the &ldquo;Riscy business&rdquo; challenge in picoCTF website.</p>]]></description></item></channel></rss>

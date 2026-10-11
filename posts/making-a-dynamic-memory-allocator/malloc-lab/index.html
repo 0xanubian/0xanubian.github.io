@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noodp" ><title> - Anubian&#39;s Planet</title><meta name="Description" content=""><meta property="og:url" content="http://localhost:1313/posts/making-a-dynamic-memory-allocator/malloc-lab/">
+  <meta property="og:site_name" content="Anubian&#39;s Planet">
+  <meta property="og:title" content="Anubian&#39;s Planet">
+  <meta property="og:description" content="IntroductionI’ve been reading the CSAPP book and recently I finished its malloc lab where I implemented my own dynamic allocator package in which I implemented malloc(), free() and realloc() functions for a 32-bit architecture. The lab was really interesting and challenging so i decided to write this blog/writeup for it to share my approach to this lab. You can download the lab from here.
+I have written this writeup in an easy to understand way however if you want to really understand it you should know how dynamic allocation works so either read the Chapter 9 of the CSAPP book or you may read this online series about memory allocation strategies by @TheGingerBill.">
+  <meta property="og:locale" content="en">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Anubian&#39;s Planet">
+  <meta name="twitter:description" content="IntroductionI’ve been reading the CSAPP book and recently I finished its malloc lab where I implemented my own dynamic allocator package in which I implemented malloc(), free() and realloc() functions for a 32-bit architecture. The lab was really interesting and challenging so i decided to write this blog/writeup for it to share my approach to this lab. You can download the lab from here.
+I have written this writeup in an easy to understand way however if you want to really understand it you should know how dynamic allocation works so either read the Chapter 9 of the CSAPP book or you may read this online series about memory allocation strategies by @TheGingerBill.">
+      <meta name="twitter:site" content="@0xanubian">
+<meta name="application-name" content="Anubian&#39;s Planet">
+<meta name="apple-mobile-web-app-title" content="Anubian&#39;s Planet">
+
+<meta name="theme-color" content="#f8f8f8"><meta name="twitter:creator" content="@0xanubian" ><link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" >
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
+<link rel="canonical" href="http://localhost:1313/posts/making-a-dynamic-memory-allocator/malloc-lab/" ><link rel="next" href="http://localhost:1313/posts/reverse-engineering-a-risc-v-binary-picoctf-riscy-business/" >
+<link rel="stylesheet" href="/css/main.min.css"><link rel="stylesheet" href="/css/style.min.css"><script type="application/ld+json">{"@context": "https://schema.org","@type": "BlogPosting",
+        "headline": "",
+        "inLanguage": "en",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "http://localhost:1313/posts/making-a-dynamic-memory-allocator/malloc-lab/"
+        },"image": ["http://localhost:1313/images/avatar.png"],"genre": "posts","wordcount":  3085 ,
+        "url": "http://localhost:1313/posts/making-a-dynamic-memory-allocator/malloc-lab/","publisher": {
+            "@type": "Organization",
+            "name": "Anubian"},"author": {
+                "@type": "Person",
+                "name": "Anubian",
+                "url": "https://github.com/0xanubian"
+            },"description": ""
+    }</script></head>
+
+
+<body data-instant-intensity="viewport" class="tw:flex tw:min-h-screen tw:flex-col"><script>
+    function setTheme(theme) {
+      document.body.setAttribute('theme', theme); 
+      document.documentElement.className = theme;
+      document.documentElement.style.setProperty('color-scheme', theme === 'light' ? 'light' : 'dark');
+      if (theme === 'light') {
+        document.documentElement.classList.remove('dark')
+      } else {
+        document.documentElement.classList.add('dark')
+      }
+      window.theme = theme;   
+      window.isDark = window.theme !== 'light' 
+    }
+    function saveTheme(theme) {window.localStorage && localStorage.setItem('theme', theme);}
+    function getMeta(metaName) {const metas = document.getElementsByTagName('meta'); for (let i = 0; i < metas.length; i++) if (metas[i].getAttribute('name') === metaName) return metas[i]; return '';}
+    if (window.localStorage && localStorage.getItem('theme')) {
+        let theme = localStorage.getItem('theme');
+        if (theme === 'light' || theme === 'dark') {
+        setTheme(theme);
+        } else {
+            if ((window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                setTheme('dark');
+            } else {
+                setTheme('light');
+            }
+        }
+      } else { 
+        if ('' === 'light' || '' === 'dark') 
+            setTheme(''), saveTheme(''); 
+        else saveTheme('auto'), window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? setTheme('dark') : setTheme('light');
+    }
+    let metaColors = {'light': '#f8f8f8','dark': '#161b22'}
+    getMeta('theme-color').content = metaColors[document.body.getAttribute('theme')];
+    window.switchThemeEventSet = new Set()
+</script><div id="back-to-top"></div>
+    <div id="mask"></div><header class="desktop tw:print:hidden!" id="header-desktop">
+    <div class="header-wrapper">
+        <div class="header-title">
+            <a href="/" title="Anubian&#39;s Planet">Anubian&#39;s Planet</a>
+        </div>
+        <div class="menu">
+            <div class="menu-inner"><a class="menu-item"
+                    href="/" > Home </a><a class="menu-item"
+                    href="/posts/" > Posts </a><a class="menu-item"
+                    href="/categories/" > Categories </a><a class="menu-item"
+                    href="/about/" > About me </a><span class="menu-item delimiter"></span><button class="menu-item theme-switch" aria-label="Switch Theme">
+                    <svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M8 256c0 136.966 111.033 248 248 248s248-111.034 248-248S392.966 8 256 8 8 119.033 8 256zm248 184V72c101.705 0 184 82.311 184 184 0 101.705-82.311 184-184 184z"/></svg>
+                </button></div>
+        </div>
+    </div>
+</header><header class="mobile tw:print:hidden!" id="header-mobile">
+    <div class="header-container">
+        <div class="header-wrapper">
+            <div class="header-title">
+                <a href="/" title="Anubian&#39;s Planet">Anubian&#39;s Planet</a>
+            </div>
+            <div class="menu-toggle" id="menu-toggle-mobile">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+        <div class="menu" id="menu-mobile"><a class="menu-item" href="/" title="" >Home</a><a class="menu-item" href="/posts/" title="" >Posts</a><a class="menu-item" href="/categories/" title="" >Categories</a><a class="menu-item" href="/about/" title="" >About me</a><button class="menu-item theme-switch tw:w-full" aria-label="Switch Theme">
+                <svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M8 256c0 136.966 111.033 248 248 248s248-111.034 248-248S392.966 8 256 8 8 119.033 8 256zm248 184V72c101.705 0 184 82.311 184 184 0 101.705-82.311 184-184 184z"/></svg>
+            </button></div>
+    </div>
+</header>
+<div class="search-dropdown desktop">
+    <div id="search-dropdown-desktop"></div>
+</div>
+<div class="search-dropdown mobile">
+    <div id="search-dropdown-mobile"></div>
+</div><main class="tw:mx-4 tw:flex-1"><div class="toc tw:print:hidden!" id="toc-auto">
+        <h2 class="toc-title">Contents</h2>
+        <div class="toc-content" id="toc-content-auto"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#introduction">Introduction</a></li>
+    <li><a href="#design-of-my-memory-allocator">Design of my memory allocator</a>
+      <ul>
+        <li><a href="#allocated-chunk">allocated chunk</a></li>
+        <li><a href="#freed-chunk">Freed chunk</a></li>
+        <li><a href="#allocatable-heap-area">allocatable heap area</a></li>
+      </ul>
+    </li>
+    <li><a href="#implementation">Implementation</a>
+      <ul>
+        <li><a href="#mm_init">mm_init()</a></li>
+        <li><a href="#extend_heap">extend_heap</a></li>
+        <li><a href="#coalesce">coalesce</a></li>
+        <li><a href="#unlink_chunk-and-insert_at_head">unlink_chunk and insert_at_head</a></li>
+        <li><a href="#mm_malloc">mm_malloc</a></li>
+        <li><a href="#place">place</a></li>
+        <li><a href="#find_free">find_free</a></li>
+        <li><a href="#mm_free">mm_free</a></li>
+        <li><a href="#mm_realloc">mm_realloc</a></li>
+      </ul>
+    </li>
+    <li><a href="#final-thoughts">Final thoughts</a></li>
+  </ul>
+</nav></div>
+    </div><dialog id="toc-dialog" class="tw:max-w-full tw:w-full tw:max-h-full tw:h-full tw:ml-16">
+        <div class="toc tw:mx-4 tw:max-w-full">
+            <h2 class="tw:mx-0 tw:my-6 tw:uppercase tw:text-2xl">Contents</h2>
+            <div class="toc-content"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#introduction">Introduction</a></li>
+    <li><a href="#design-of-my-memory-allocator">Design of my memory allocator</a>
+      <ul>
+        <li><a href="#allocated-chunk">allocated chunk</a></li>
+        <li><a href="#freed-chunk">Freed chunk</a></li>
+        <li><a href="#allocatable-heap-area">allocatable heap area</a></li>
+      </ul>
+    </li>
+    <li><a href="#implementation">Implementation</a>
+      <ul>
+        <li><a href="#mm_init">mm_init()</a></li>
+        <li><a href="#extend_heap">extend_heap</a></li>
+        <li><a href="#coalesce">coalesce</a></li>
+        <li><a href="#unlink_chunk-and-insert_at_head">unlink_chunk and insert_at_head</a></li>
+        <li><a href="#mm_malloc">mm_malloc</a></li>
+        <li><a href="#place">place</a></li>
+        <li><a href="#find_free">find_free</a></li>
+        <li><a href="#mm_free">mm_free</a></li>
+        <li><a href="#mm_realloc">mm_realloc</a></li>
+      </ul>
+    </li>
+    <li><a href="#final-thoughts">Final thoughts</a></li>
+  </ul>
+</nav></div>
+        </div>
+    </dialog><script>document.getElementsByTagName("main")[0].setAttribute("autoTOC", "true")</script><article class="page single tw:print:w-full! tw:print:max-w-none! tw:print:m-0! tw:print:p-0!"><h1 class="single-title" data-pagefind-meta="date:0001-01-01" data-pagefind-body></h1><div class="post-meta">
+            <div class="post-meta-line">
+                <span class="post-author"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm0 96c48.6 0 88 39.4 88 88s-39.4 88-88 88-88-39.4-88-88 39.4-88 88-88zm0 344c-58.7 0-111.3-26.6-146.5-68.2 18.8-35.4 55.6-59.8 98.5-59.8 2.4 0 4.8.4 7.1 1.1 13 4.2 26.6 6.9 40.9 6.9 14.3 0 28-2.7 40.9-6.9 2.3-.7 4.7-1.1 7.1-1.1 42.9 0 79.7 24.4 98.5 59.8C359.3 421.4 306.7 448 248 448z"/></svg><a href="https://github.com/0xanubian" title="Author" target="_blank" rel="noopener noreferrer author" class="author">Anubian</a>
+                </span></div>
+            <div class="post-meta-line"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M148 288h-40c-6.6 0-12-5.4-12-12v-40c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12zm108-12v-40c0-6.6-5.4-12-12-12h-40c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12zm96 0v-40c0-6.6-5.4-12-12-12h-40c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12zm-96 96v-40c0-6.6-5.4-12-12-12h-40c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12zm-96 0v-40c0-6.6-5.4-12-12-12h-40c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12zm192 0v-40c0-6.6-5.4-12-12-12h-40c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12zm96-260v352c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V112c0-26.5 21.5-48 48-48h48V12c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v52h128V12c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v52h48c26.5 0 48 21.5 48 48zm-48 346V160H48v298c0 3.3 2.7 6 6 6h340c3.3 0 6-2.7 6-6z"/></svg>&nbsp;<time datetime="0001-01-01">0001-01-01</time>&nbsp;<svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M402.3 344.9l32-32c5-5 13.7-1.5 13.7 5.7V464c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V112c0-26.5 21.5-48 48-48h273.5c7.1 0 10.7 8.6 5.7 13.7l-32 32c-1.5 1.5-3.5 2.3-5.7 2.3H48v352h352V350.5c0-2.1.8-4.1 2.3-5.6zm156.6-201.8L296.3 405.7l-90.4 10c-26.2 2.9-48.5-19.2-45.6-45.6l10-90.4L432.9 17.1c22.9-22.9 59.9-22.9 82.7 0l43.2 43.2c22.9 22.9 22.9 60 .1 82.8zM460.1 174L402 115.9 216.2 301.8l-7.3 65.3 65.3-7.3L460.1 174zm64.8-79.7l-43.2-43.2c-4.1-4.1-10.8-4.1-14.8 0L436 82l58.1 58.1 30.9-30.9c4-4.2 4-10.8-.1-14.9z"/></svg>&nbsp;<time datetime="0001-01-01">0001-01-01</time>&nbsp;<svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M497.9 142.1l-46.1 46.1c-4.7 4.7-12.3 4.7-17 0l-111-111c-4.7-4.7-4.7-12.3 0-17l46.1-46.1c18.7-18.7 49.1-18.7 67.9 0l60.1 60.1c18.8 18.7 18.8 49.1 0 67.9zM284.2 99.8L21.6 362.4.4 483.9c-2.9 16.4 11.4 30.6 27.8 27.8l121.5-21.3 262.6-262.6c4.7-4.7 4.7-12.3 0-17l-111-111c-4.8-4.7-12.4-4.7-17.1 0zM124.1 339.9c-5.5-5.5-5.5-14.3 0-19.8l154-154c5.5-5.5 14.3-5.5 19.8 0s5.5 14.3 0 19.8l-154 154c-5.5 5.5-14.3 5.5-19.8 0zM88 424h48v36.3l-64.5 11.3-31.1-31.1L51.7 376H88v48z"/></svg>&nbsp;3085 words&nbsp;
+                    <svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M256 8C119 8 8 119 8 256s111 248 248 248 248-111 248-248S393 8 256 8zm0 448c-110.5 0-200-89.5-200-200S145.5 56 256 56s200 89.5 200 200-89.5 200-200 200zm61.8-104.4l-84.9-61.7c-3.1-2.3-4.9-5.9-4.9-9.7V116c0-6.6 5.4-12 12-12h32c6.6 0 12 5.4 12 12v141.7l66.8 48.6c5.4 3.9 6.5 11.4 2.6 16.8L334.6 349c-3.9 5.3-11.4 6.5-16.8 2.6z"/></svg>&nbsp;14 minutes&nbsp;</div>
+        </div><div class="details toc tw:print:block!" id="toc-static" data-kept="">
+                <div class="details-summary toc-title">
+                    <span>Contents</span>
+                    <span class="details-icon"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M224.3 273l-136 136c-9.4 9.4-24.6 9.4-33.9 0l-22.6-22.6c-9.4-9.4-9.4-24.6 0-33.9l96.4-96.4-96.4-96.4c-9.4-9.4-9.4-24.6 0-33.9L54.3 103c9.4-9.4 24.6-9.4 33.9 0l136 136c9.5 9.4 9.5 24.6.1 34z"/></svg></span>
+                </div>
+                <div class="details-content toc-content" id="toc-content-static"><nav id="TableOfContents">
+  <ul>
+    <li><a href="#introduction">Introduction</a></li>
+    <li><a href="#design-of-my-memory-allocator">Design of my memory allocator</a>
+      <ul>
+        <li><a href="#allocated-chunk">allocated chunk</a></li>
+        <li><a href="#freed-chunk">Freed chunk</a></li>
+        <li><a href="#allocatable-heap-area">allocatable heap area</a></li>
+      </ul>
+    </li>
+    <li><a href="#implementation">Implementation</a>
+      <ul>
+        <li><a href="#mm_init">mm_init()</a></li>
+        <li><a href="#extend_heap">extend_heap</a></li>
+        <li><a href="#coalesce">coalesce</a></li>
+        <li><a href="#unlink_chunk-and-insert_at_head">unlink_chunk and insert_at_head</a></li>
+        <li><a href="#mm_malloc">mm_malloc</a></li>
+        <li><a href="#place">place</a></li>
+        <li><a href="#find_free">find_free</a></li>
+        <li><a href="#mm_free">mm_free</a></li>
+        <li><a href="#mm_realloc">mm_realloc</a></li>
+      </ul>
+    </li>
+    <li><a href="#final-thoughts">Final thoughts</a></li>
+  </ul>
+</nav></div>
+            </div><div class="content" id="content" data-pagefind-body><h2 id="introduction" class="headerLink">
+    <a href="#introduction" class="header-mark"></a>Introduction</h2><p>I&rsquo;ve been reading the <a href="https://csapp.cs.cmu.edu/" target="_blank" rel="noopener noreferrer">CSAPP</a> book and recently I finished its malloc lab where I implemented my own dynamic allocator package in which I implemented <code>malloc()</code>, <code>free()</code> and <code>realloc()</code> functions for a 32-bit architecture. The lab was really interesting and challenging so i decided to write this blog/writeup for it to share my approach to this lab.
+You can download the lab from <a href="https://csapp.cs.cmu.edu/3e/labs.html" target="_blank" rel="noopener noreferrer">here</a>.</p>
+<p>I have written this writeup in an easy to understand way however if you want to really understand it you should know how dynamic allocation works so either read the Chapter 9 of the CSAPP book or you may read this online series about <a href="https://www.gingerbill.org/series/memory-allocation-strategies/" target="_blank" rel="noopener noreferrer">memory allocation strategies</a> by <a href="https://twitter.com/TheGingerBill" target="_blank" rel="noopener noreferrer">@TheGingerBill</a>.</p>
+<p>Let&rsquo;s dive into it.</p>
+<h2 id="design-of-my-memory-allocator" class="headerLink">
+    <a href="#design-of-my-memory-allocator" class="header-mark"></a>Design of my memory allocator</h2><p>In my allocator implementation an allocated chunk will have a 8 bytes long header field and a 8 bytes long footer field. The memory addresses of the payload(address that will be returned to the user after a call to <code>malloc()</code>) will always be <code>8-bytes</code> alligned as it is in the <code>glibc malloc package</code>. As everything is <code>8-bytes</code> alligned, the <em>3 low order bits</em> of the size field will always be <code>0</code> so we can put some other information at those bits without messing with the size of our chunk.</p>
+<p>My implementation is going to use an explicit doubly linked list for freed chunks which will follow LIFO. So that searching for a freed chunk will of <code>O(n)</code> in number of free blocks. So a freed chunk will too have a header and footer field but it will also have <code>prev</code> and <code>next</code> fields that will point to the previous and next freed chunk in the free list.</p>
+<h3 id="allocated-chunk" class="headerLink">
+    <a href="#allocated-chunk" class="header-mark"></a>allocated chunk</h3><p><img class="tw:inline" loading="lazy" src='allocated_chunk.jpg'   alt="allocated chunk"  ></p>
+<ul>
+<li>As you can see at the start of an allocated chunk there is a header field that contains the size of the chunk and the <code>alloc bit</code>, which will be 0 or 1 if its freed or allocated respectively.</li>
+<li>The size of header and footer fields is 8 bytes each and since my implementation is <code>8-bytes</code> alligned so the minimum size of payload fiend is also 8.</li>
+<li>Thus the minimum size of my allocated chunk is 24 bytes.</li>
+<li>But since the implementation is for 32-bit architecture, the size in the header and footer is only 4 bytes long, wasting 4 bytes at both header and footer, thus having an internal fragmentation of 8 bytes per chunk.</li>
+</ul>
+<h3 id="freed-chunk" class="headerLink">
+    <a href="#freed-chunk" class="header-mark"></a>Freed chunk</h3><p><img class="tw:inline" loading="lazy" src='freed_chunk.jpg'   alt="freed chunk"  ></p>
+<ul>
+<li>The header and footer field is same as of an allocated chunk but a freed chunk will have <code>next</code> and <code>prev</code> pointer field that will point to the next and previous freed chunk in the explicit free list.</li>
+<li>Since a pointer in 32-bit architecture is only 4 bytes long so our <code>next</code> and <code>prev</code> fields can perfectly fit in the minimum payload size.</li>
+<li>Thus minimum size of a freed chunk is also 24 bytes.</li>
+</ul>
+<h3 id="allocatable-heap-area" class="headerLink">
+    <a href="#allocatable-heap-area" class="header-mark"></a>allocatable heap area</h3><p><img class="tw:inline" loading="lazy" src='arena.jpg'   alt="allocatable heap are"  ></p>
+<ul>
+<li>The heap will have a prologue at the start and an epilogue at the end that will always be allocated.</li>
+<li>They will act as boundaries so that my coallescing logic doesn&rsquo;t mess with anything outside the heap while searching for a previous or next adjacent freed chunk.</li>
+<li>There is a pointer <code>heap_list_p</code> that will always be pointing to the start of my allocatable heal area or arena.</li>
+<li>The space between the prologue and epilogue is our arena where my allocated and freed chunks will be.</li>
+<li>I can grow the heap by calling <code>extend_heap()</code> if needed.</li>
+</ul>
+<h2 id="implementation" class="headerLink">
+    <a href="#implementation" class="header-mark"></a>Implementation</h2><p>Before anything I made some definitions to help me manage raw bytes as I didn&rsquo;t use any <code>struct</code> or other complex data structure.</p>
+<p>Most of these definitions are self explanatory and have comments to explain their purpose so I will not explain them again.</p>
+<div class="code-block highlight is-open show-line-numbers  tw:group tw:my-2">
+  <div class="
+    
+    tw:flex 
+    tw:flex-row
+    tw:flex-1 
+    tw:justify-between 
+    tw:w-full tw:bg-bgColor-secondary
+    ">      
+    <button 
+      class="
+        code-block-button
+        tw:mx-2 
+        tw:flex
+        tw:flex-row
+        tw:flex-1"
+      aria-hidden="true">
+          <span class="tw:group-[.is-open]:rotate-90 tw:transition-[transform] tw:duration-500 tw:ease-in-out tw:print:hidden! tw:w-min tw:h-min tw:my-1 tw:mx-1"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M285.476 272.971L91.132 467.314c-9.373 9.373-24.569 9.373-33.941 0l-22.667-22.667c-9.357-9.357-9.375-24.522-.04-33.901L188.505 256 34.484 101.255c-9.335-9.379-9.317-24.544.04-33.901l22.667-22.667c9.373-9.373 24.569-9.373 33.941 0L285.475 239.03c9.373 9.372 9.373 24.568.001 33.941z"/></svg></span>
+          <span class="tw:select-none tw:my-1! tw:block">c</span>
+      </button>
+
+   <div class="tw:flex">
+      <button 
+        class="
+          line-number-button
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.show-line-numbers]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle line numbers"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M61.77 401l17.5-20.15a19.92 19.92 0 0 0 5.07-14.19v-3.31C84.34 356 80.5 352 73 352H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8h22.83a157.41 157.41 0 0 0-11 12.31l-5.61 7c-4 5.07-5.25 10.13-2.8 14.88l1.05 1.93c3 5.76 6.29 7.88 12.25 7.88h4.73c10.33 0 15.94 2.44 15.94 9.09 0 4.72-4.2 8.22-14.36 8.22a41.54 41.54 0 0 1-15.47-3.12c-6.49-3.88-11.74-3.5-15.6 3.12l-5.59 9.31c-3.72 6.13-3.19 11.72 2.63 15.94 7.71 4.69 20.38 9.44 37 9.44 34.16 0 48.5-22.75 48.5-44.12-.03-14.38-9.12-29.76-28.73-34.88zM496 224H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zm0-160H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16V80a16 16 0 0 0-16-16zm0 320H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zM16 160h64a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H64V40a8 8 0 0 0-8-8H32a8 8 0 0 0-7.14 4.42l-8 16A8 8 0 0 0 24 64h8v64H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8zm-3.91 160H80a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H41.32c3.29-10.29 48.34-18.68 48.34-56.44 0-29.06-25-39.56-44.47-39.56-21.36 0-33.8 10-40.46 18.75-4.37 5.59-3 10.84 2.8 15.37l8.58 6.88c5.61 4.56 11 2.47 16.12-2.44a13.44 13.44 0 0 1 9.46-3.84c3.33 0 9.28 1.56 9.28 8.75C51 248.19 0 257.31 0 304.59v4C0 316 5.08 320 12.09 320z"/></svg></button>
+
+      <button 
+        class="
+          wrap-code-button
+          tw:select-none 
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.is-wrap]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle code wrap"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M16 132h416c8.837 0 16-7.163 16-16V76c0-8.837-7.163-16-16-16H16C7.163 60 0 67.163 0 76v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16z"/></svg></button>
+      
+      <button 
+        class="
+          copy-code-button
+          tw:select-none
+          tw:mx-2 
+          tw:hidden
+          tw:group-[.is-open]:block
+          tw:hover:text-fgColor-link 
+          tw:print:hidden!"
+        title="Copy code">
+          <span class="copy-icon tw:block"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M433.941 65.941l-51.882-51.882A48 48 0 0 0 348.118 0H176c-26.51 0-48 21.49-48 48v48H48c-26.51 0-48 21.49-48 48v320c0 26.51 21.49 48 48 48h224c26.51 0 48-21.49 48-48v-48h80c26.51 0 48-21.49 48-48V99.882a48 48 0 0 0-14.059-33.941zM266 464H54a6 6 0 0 1-6-6V150a6 6 0 0 1 6-6h74v224c0 26.51 21.49 48 48 48h96v42a6 6 0 0 1-6 6zm128-96H182a6 6 0 0 1-6-6V54a6 6 0 0 1 6-6h106v88c0 13.255 10.745 24 24 24h88v202a6 6 0 0 1-6 6zm6-256h-64V48h9.632c1.591 0 3.117.632 4.243 1.757l48.368 48.368a6 6 0 0 1 1.757 4.243V112z"/></svg></span>
+          <span class="check-icon tw:hidden"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/></svg></span>
+      </button>
+        
+      <button 
+        class="
+          tw:select-none 
+          tw:mx-2 
+          tw:block 
+          tw:group-[.is-open]:hidden 
+          tw:print:hidden!" 
+        disabled
+        aria-hidden="true"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M328 256c0 39.8-32.2 72-72 72s-72-32.2-72-72 32.2-72 72-72 72 32.2 72 72zm104-72c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72zm-352 0c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72z"/></svg></button>
+    </div>
+  </div>
+  <pre style="counter-reset: codeblock;" class="tw:block tw:m-0 tw:p-0"><code 
+    id="codeblock-id-1" 
+    class="
+      chroma 
+      tw:block! 
+      tw:p-0
+      tw:m-0
+      tw:transition-[max-height] 
+      tw:duration-500 
+      tw:ease-in-out 
+      tw:group-[.is-closed]:max-h-0! 
+      tw:group-[.is-wrap]:text-wrap
+      tw:overflow-y-hidden
+      tw:overflow-x-auto
+      tw:scrollbar-thin
+      "><span class="line"><span class="cl"><span class="cm">/* single word (4) or double word (8) alignment */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define ALIGNMENT 8
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* rounds up to the nearest multiple of ALIGNMENT */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define ALIGN(size) (((size) + (ALIGNMENT-1)) &amp; ~0x7)
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cp">#define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* definitions by me */</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* word size */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define WSIZE 4
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define DSIZE 8
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* size of chunk to grow the heap i.e. 4096 or 4KB */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define CHUNKSIZE (1 &lt;&lt; 12)
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* Minimum chunk size in this implementation */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define MIN_CHUNK_SIZE 24
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* find max between two numbers */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define MAX(x, y) ((x) &gt; (y)? (x) : (y))  
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* pack size and alloc bit */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define PACK(size, alloc)  ((size) | (alloc))
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* get and put the value stored at a chunk pointer */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define GET(p)       (*(unsigned int *)(p))
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define PUT(p, val)  (*(unsigned int *)(p) = (val))
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* retrive size and allocation bit from a chunk pointer */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define GET_SIZE(p)  (GET(p) &amp; ~0x7)
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define GET_ALLOC(p) (GET(p) &amp; 0x1)
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* retrieve header and footer address from a block pointer */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define HDRP(bp)       ((char *)(bp) - DSIZE)
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define FTRP(bp)       ((char *)(bp) + GET_SIZE(HDRP(bp)) - (2 * DSIZE))
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define PREV_FTRP(bp)  ((char *)(bp) - (2 * DSIZE))
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* retrieve address of next and previous block pointer from current block pointer */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define NEXT_BLKP(bp)  ((char *)(bp) + GET_SIZE(((char *)(bp) - DSIZE)))
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define PREV_BLKP(bp)  ((char *)(bp) - GET_SIZE(((char *)(bp) - (2 * DSIZE))))
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* retrive the next_freed_pointer from a freed block pointer */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define NEXT_FREEDP(bp)     GET(bp)
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* retrive the prev_freed_pointer from a freed block pointer */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define PREV_FREEDP(bp)     GET((char *)bp+WSIZE)
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* put the next_freed_pointer to a freed block pointer */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define PUT_NEXT(bp, val)    PUT(bp, val)
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/*put the prev_freed_pointer to a freed block pointer */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define PUT_PREV(bp, val)    PUT((char *)bp+WSIZE, val)
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* a pointer to the start of heap */</span>
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="o">*</span><span class="n">heap_listp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* a pointer to the explicit free list */</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="o">*</span><span class="n">free_listp</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span></span></span></code></pre>
+</div>
+<h3 id="mm_init" class="headerLink">
+    <a href="#mm_init" class="header-mark"></a>mm_init()</h3><p>This function initialises the heap using <code>mem_sbrk()</code> which is pre-implemented lab version of the <code>sbrk()</code> linux syscall. It increases the heap size and returns the address of start of newly created heap.</p>
+<div class="code-block highlight is-open show-line-numbers  tw:group tw:my-2">
+  <div class="
+    
+    tw:flex 
+    tw:flex-row
+    tw:flex-1 
+    tw:justify-between 
+    tw:w-full tw:bg-bgColor-secondary
+    ">      
+    <button 
+      class="
+        code-block-button
+        tw:mx-2 
+        tw:flex
+        tw:flex-row
+        tw:flex-1"
+      aria-hidden="true">
+          <span class="tw:group-[.is-open]:rotate-90 tw:transition-[transform] tw:duration-500 tw:ease-in-out tw:print:hidden! tw:w-min tw:h-min tw:my-1 tw:mx-1"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M285.476 272.971L91.132 467.314c-9.373 9.373-24.569 9.373-33.941 0l-22.667-22.667c-9.357-9.357-9.375-24.522-.04-33.901L188.505 256 34.484 101.255c-9.335-9.379-9.317-24.544.04-33.901l22.667-22.667c9.373-9.373 24.569-9.373 33.941 0L285.475 239.03c9.373 9.372 9.373 24.568.001 33.941z"/></svg></span>
+          <span class="tw:select-none tw:my-1! tw:block">c</span>
+      </button>
+
+   <div class="tw:flex">
+      <button 
+        class="
+          line-number-button
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.show-line-numbers]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle line numbers"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M61.77 401l17.5-20.15a19.92 19.92 0 0 0 5.07-14.19v-3.31C84.34 356 80.5 352 73 352H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8h22.83a157.41 157.41 0 0 0-11 12.31l-5.61 7c-4 5.07-5.25 10.13-2.8 14.88l1.05 1.93c3 5.76 6.29 7.88 12.25 7.88h4.73c10.33 0 15.94 2.44 15.94 9.09 0 4.72-4.2 8.22-14.36 8.22a41.54 41.54 0 0 1-15.47-3.12c-6.49-3.88-11.74-3.5-15.6 3.12l-5.59 9.31c-3.72 6.13-3.19 11.72 2.63 15.94 7.71 4.69 20.38 9.44 37 9.44 34.16 0 48.5-22.75 48.5-44.12-.03-14.38-9.12-29.76-28.73-34.88zM496 224H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zm0-160H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16V80a16 16 0 0 0-16-16zm0 320H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zM16 160h64a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H64V40a8 8 0 0 0-8-8H32a8 8 0 0 0-7.14 4.42l-8 16A8 8 0 0 0 24 64h8v64H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8zm-3.91 160H80a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H41.32c3.29-10.29 48.34-18.68 48.34-56.44 0-29.06-25-39.56-44.47-39.56-21.36 0-33.8 10-40.46 18.75-4.37 5.59-3 10.84 2.8 15.37l8.58 6.88c5.61 4.56 11 2.47 16.12-2.44a13.44 13.44 0 0 1 9.46-3.84c3.33 0 9.28 1.56 9.28 8.75C51 248.19 0 257.31 0 304.59v4C0 316 5.08 320 12.09 320z"/></svg></button>
+
+      <button 
+        class="
+          wrap-code-button
+          tw:select-none 
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.is-wrap]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle code wrap"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M16 132h416c8.837 0 16-7.163 16-16V76c0-8.837-7.163-16-16-16H16C7.163 60 0 67.163 0 76v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16z"/></svg></button>
+      
+      <button 
+        class="
+          copy-code-button
+          tw:select-none
+          tw:mx-2 
+          tw:hidden
+          tw:group-[.is-open]:block
+          tw:hover:text-fgColor-link 
+          tw:print:hidden!"
+        title="Copy code">
+          <span class="copy-icon tw:block"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M433.941 65.941l-51.882-51.882A48 48 0 0 0 348.118 0H176c-26.51 0-48 21.49-48 48v48H48c-26.51 0-48 21.49-48 48v320c0 26.51 21.49 48 48 48h224c26.51 0 48-21.49 48-48v-48h80c26.51 0 48-21.49 48-48V99.882a48 48 0 0 0-14.059-33.941zM266 464H54a6 6 0 0 1-6-6V150a6 6 0 0 1 6-6h74v224c0 26.51 21.49 48 48 48h96v42a6 6 0 0 1-6 6zm128-96H182a6 6 0 0 1-6-6V54a6 6 0 0 1 6-6h106v88c0 13.255 10.745 24 24 24h88v202a6 6 0 0 1-6 6zm6-256h-64V48h9.632c1.591 0 3.117.632 4.243 1.757l48.368 48.368a6 6 0 0 1 1.757 4.243V112z"/></svg></span>
+          <span class="check-icon tw:hidden"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/></svg></span>
+      </button>
+        
+      <button 
+        class="
+          tw:select-none 
+          tw:mx-2 
+          tw:block 
+          tw:group-[.is-open]:hidden 
+          tw:print:hidden!" 
+        disabled
+        aria-hidden="true"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M328 256c0 39.8-32.2 72-72 72s-72-32.2-72-72 32.2-72 72-72 72 32.2 72 72zm104-72c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72zm-352 0c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72z"/></svg></button>
+    </div>
+  </div>
+  <pre style="counter-reset: codeblock;" class="tw:block tw:m-0 tw:p-0"><code 
+    id="codeblock-id-2" 
+    class="
+      chroma 
+      tw:block! 
+      tw:p-0
+      tw:m-0
+      tw:transition-[max-height] 
+      tw:duration-500 
+      tw:ease-in-out 
+      tw:group-[.is-closed]:max-h-0! 
+      tw:group-[.is-wrap]:text-wrap
+      tw:overflow-y-hidden
+      tw:overflow-x-auto
+      tw:scrollbar-thin
+      "><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">mm_init</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="cm">/* reset the free_listp address */</span>
+</span></span><span class="line"><span class="cl">    <span class="n">free_listp</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="cm">/* call mem_sbrk to setup an empty free list */</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">((</span><span class="kt">long</span><span class="p">)(</span><span class="n">heap_listp</span> <span class="o">=</span> <span class="nf">mem_sbrk</span><span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="n">DSIZE</span><span class="p">))</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="cm">/* puts padding, prologue and epilogue into the empty free list */</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">PUT</span><span class="p">((</span><span class="kt">char</span> <span class="o">*</span><span class="p">)(</span><span class="n">heap_listp</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">PUT</span><span class="p">(((</span><span class="kt">char</span> <span class="o">*</span><span class="p">)</span><span class="n">heap_listp</span> <span class="o">+</span> <span class="n">DSIZE</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">heap_listp</span> <span class="o">=</span> <span class="p">(</span><span class="kt">char</span><span class="o">*</span><span class="p">)</span><span class="n">heap_listp</span> <span class="o">+</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">DSIZE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">PUT</span><span class="p">(</span><span class="n">heap_listp</span><span class="p">,</span> <span class="nf">PACK</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">extend_heap</span><span class="p">(</span><span class="n">CHUNKSIZE</span><span class="o">/</span><span class="n">DSIZE</span><span class="p">)</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span></span></span></code></pre>
+</div>
+<ul>
+<li>It first resets the free list pointer as the driver program that verifies this implementation calls <code>mm_init()</code> everytime and storing the previous free list can cause a crash.</li>
+<li>It then calls <code>mem_sbrk(3 * DSIZE)</code> to allocate a basic heap arena that only has prologue and epilogue in it.</li>
+<li>It then puts prologue and epilogue and sets <code>heap_listp</code> to its position and calls <code>extend_heap()</code> to extend the heap for our allocatable heap area or arena.</li>
+</ul>
+<h3 id="extend_heap" class="headerLink">
+    <a href="#extend_heap" class="header-mark"></a>extend_heap</h3><div class="code-block highlight is-open show-line-numbers  tw:group tw:my-2">
+  <div class="
+    
+    tw:flex 
+    tw:flex-row
+    tw:flex-1 
+    tw:justify-between 
+    tw:w-full tw:bg-bgColor-secondary
+    ">      
+    <button 
+      class="
+        code-block-button
+        tw:mx-2 
+        tw:flex
+        tw:flex-row
+        tw:flex-1"
+      aria-hidden="true">
+          <span class="tw:group-[.is-open]:rotate-90 tw:transition-[transform] tw:duration-500 tw:ease-in-out tw:print:hidden! tw:w-min tw:h-min tw:my-1 tw:mx-1"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M285.476 272.971L91.132 467.314c-9.373 9.373-24.569 9.373-33.941 0l-22.667-22.667c-9.357-9.357-9.375-24.522-.04-33.901L188.505 256 34.484 101.255c-9.335-9.379-9.317-24.544.04-33.901l22.667-22.667c9.373-9.373 24.569-9.373 33.941 0L285.475 239.03c9.373 9.372 9.373 24.568.001 33.941z"/></svg></span>
+          <span class="tw:select-none tw:my-1! tw:block">c</span>
+      </button>
+
+   <div class="tw:flex">
+      <button 
+        class="
+          line-number-button
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.show-line-numbers]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle line numbers"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M61.77 401l17.5-20.15a19.92 19.92 0 0 0 5.07-14.19v-3.31C84.34 356 80.5 352 73 352H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8h22.83a157.41 157.41 0 0 0-11 12.31l-5.61 7c-4 5.07-5.25 10.13-2.8 14.88l1.05 1.93c3 5.76 6.29 7.88 12.25 7.88h4.73c10.33 0 15.94 2.44 15.94 9.09 0 4.72-4.2 8.22-14.36 8.22a41.54 41.54 0 0 1-15.47-3.12c-6.49-3.88-11.74-3.5-15.6 3.12l-5.59 9.31c-3.72 6.13-3.19 11.72 2.63 15.94 7.71 4.69 20.38 9.44 37 9.44 34.16 0 48.5-22.75 48.5-44.12-.03-14.38-9.12-29.76-28.73-34.88zM496 224H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zm0-160H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16V80a16 16 0 0 0-16-16zm0 320H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zM16 160h64a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H64V40a8 8 0 0 0-8-8H32a8 8 0 0 0-7.14 4.42l-8 16A8 8 0 0 0 24 64h8v64H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8zm-3.91 160H80a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H41.32c3.29-10.29 48.34-18.68 48.34-56.44 0-29.06-25-39.56-44.47-39.56-21.36 0-33.8 10-40.46 18.75-4.37 5.59-3 10.84 2.8 15.37l8.58 6.88c5.61 4.56 11 2.47 16.12-2.44a13.44 13.44 0 0 1 9.46-3.84c3.33 0 9.28 1.56 9.28 8.75C51 248.19 0 257.31 0 304.59v4C0 316 5.08 320 12.09 320z"/></svg></button>
+
+      <button 
+        class="
+          wrap-code-button
+          tw:select-none 
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.is-wrap]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle code wrap"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M16 132h416c8.837 0 16-7.163 16-16V76c0-8.837-7.163-16-16-16H16C7.163 60 0 67.163 0 76v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16z"/></svg></button>
+      
+      <button 
+        class="
+          copy-code-button
+          tw:select-none
+          tw:mx-2 
+          tw:hidden
+          tw:group-[.is-open]:block
+          tw:hover:text-fgColor-link 
+          tw:print:hidden!"
+        title="Copy code">
+          <span class="copy-icon tw:block"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M433.941 65.941l-51.882-51.882A48 48 0 0 0 348.118 0H176c-26.51 0-48 21.49-48 48v48H48c-26.51 0-48 21.49-48 48v320c0 26.51 21.49 48 48 48h224c26.51 0 48-21.49 48-48v-48h80c26.51 0 48-21.49 48-48V99.882a48 48 0 0 0-14.059-33.941zM266 464H54a6 6 0 0 1-6-6V150a6 6 0 0 1 6-6h74v224c0 26.51 21.49 48 48 48h96v42a6 6 0 0 1-6 6zm128-96H182a6 6 0 0 1-6-6V54a6 6 0 0 1 6-6h106v88c0 13.255 10.745 24 24 24h88v202a6 6 0 0 1-6 6zm6-256h-64V48h9.632c1.591 0 3.117.632 4.243 1.757l48.368 48.368a6 6 0 0 1 1.757 4.243V112z"/></svg></span>
+          <span class="check-icon tw:hidden"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/></svg></span>
+      </button>
+        
+      <button 
+        class="
+          tw:select-none 
+          tw:mx-2 
+          tw:block 
+          tw:group-[.is-open]:hidden 
+          tw:print:hidden!" 
+        disabled
+        aria-hidden="true"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M328 256c0 39.8-32.2 72-72 72s-72-32.2-72-72 32.2-72 72-72 72 32.2 72 72zm104-72c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72zm-352 0c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72z"/></svg></button>
+    </div>
+  </div>
+  <pre style="counter-reset: codeblock;" class="tw:block tw:m-0 tw:p-0"><code 
+    id="codeblock-id-3" 
+    class="
+      chroma 
+      tw:block! 
+      tw:p-0
+      tw:m-0
+      tw:transition-[max-height] 
+      tw:duration-500 
+      tw:ease-in-out 
+      tw:group-[.is-closed]:max-h-0! 
+      tw:group-[.is-wrap]:text-wrap
+      tw:overflow-y-hidden
+      tw:overflow-x-auto
+      tw:scrollbar-thin
+      "><span class="line"><span class="cl"><span class="cm">/*
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * extends the heap by the given word count and returns the payload addr of 
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * chunk
+</span></span></span><span class="line"><span class="cl"><span class="cm"> */</span>
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="o">*</span><span class="nf">extend_heap</span><span class="p">(</span><span class="kt">size_t</span> <span class="n">words</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">void</span> <span class="o">*</span><span class="n">bp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">size</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/* adjust no of words to form allignement and then initialize size */</span>
+</span></span><span class="line"><span class="cl">    <span class="n">size</span> <span class="o">=</span> <span class="p">(</span><span class="n">words</span> <span class="o">%</span> <span class="mi">2</span><span class="p">)</span> <span class="o">?</span> <span class="p">(</span><span class="n">words</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="nl">DSIZE</span> <span class="p">:</span> <span class="n">words</span> <span class="o">*</span> <span class="n">DSIZE</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/* calls mem_sbrk to extend the heap */</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">((</span><span class="kt">long</span><span class="p">)(</span><span class="n">bp</span> <span class="o">=</span> <span class="nf">mem_sbrk</span><span class="p">(</span><span class="n">size</span><span class="p">))</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/* puts the header and pooter into the new free chunk and puts the new epilogue */</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">bp</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">((</span><span class="n">size</span><span class="p">),</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">PUT</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="n">bp</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">((</span><span class="n">size</span><span class="p">),</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">)),</span> <span class="nf">PACK</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/* insert the newly created free chunk in the free list */</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">insert_at_head</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/* calls coalesce to coalesce any contigous free chunk */</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nf">coalesce</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span></span></span></code></pre>
+</div>
+<ul>
+<li>It first calculates the size of memory to extend the heap with that is valid with my allignment policy.</li>
+<li>It then extends the heap with <code>mem_sbrk</code> and puts the <code>size</code> and <code>alloc</code> bit in the header and footer of the newly extended region.</li>
+<li>It creates a new epilogue and inserts the new free block at the head of my explicit free list.</li>
+<li>It then calls <code>coalesce()</code> to coalesce any adjacent free chunk to the <code>bp</code> and returns its return value.</li>
+</ul>
+<h3 id="coalesce" class="headerLink">
+    <a href="#coalesce" class="header-mark"></a>coalesce</h3><div class="code-block highlight is-open show-line-numbers  tw:group tw:my-2">
+  <div class="
+    
+    tw:flex 
+    tw:flex-row
+    tw:flex-1 
+    tw:justify-between 
+    tw:w-full tw:bg-bgColor-secondary
+    ">      
+    <button 
+      class="
+        code-block-button
+        tw:mx-2 
+        tw:flex
+        tw:flex-row
+        tw:flex-1"
+      aria-hidden="true">
+          <span class="tw:group-[.is-open]:rotate-90 tw:transition-[transform] tw:duration-500 tw:ease-in-out tw:print:hidden! tw:w-min tw:h-min tw:my-1 tw:mx-1"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M285.476 272.971L91.132 467.314c-9.373 9.373-24.569 9.373-33.941 0l-22.667-22.667c-9.357-9.357-9.375-24.522-.04-33.901L188.505 256 34.484 101.255c-9.335-9.379-9.317-24.544.04-33.901l22.667-22.667c9.373-9.373 24.569-9.373 33.941 0L285.475 239.03c9.373 9.372 9.373 24.568.001 33.941z"/></svg></span>
+          <span class="tw:select-none tw:my-1! tw:block">c</span>
+      </button>
+
+   <div class="tw:flex">
+      <button 
+        class="
+          line-number-button
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.show-line-numbers]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle line numbers"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M61.77 401l17.5-20.15a19.92 19.92 0 0 0 5.07-14.19v-3.31C84.34 356 80.5 352 73 352H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8h22.83a157.41 157.41 0 0 0-11 12.31l-5.61 7c-4 5.07-5.25 10.13-2.8 14.88l1.05 1.93c3 5.76 6.29 7.88 12.25 7.88h4.73c10.33 0 15.94 2.44 15.94 9.09 0 4.72-4.2 8.22-14.36 8.22a41.54 41.54 0 0 1-15.47-3.12c-6.49-3.88-11.74-3.5-15.6 3.12l-5.59 9.31c-3.72 6.13-3.19 11.72 2.63 15.94 7.71 4.69 20.38 9.44 37 9.44 34.16 0 48.5-22.75 48.5-44.12-.03-14.38-9.12-29.76-28.73-34.88zM496 224H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zm0-160H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16V80a16 16 0 0 0-16-16zm0 320H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zM16 160h64a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H64V40a8 8 0 0 0-8-8H32a8 8 0 0 0-7.14 4.42l-8 16A8 8 0 0 0 24 64h8v64H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8zm-3.91 160H80a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H41.32c3.29-10.29 48.34-18.68 48.34-56.44 0-29.06-25-39.56-44.47-39.56-21.36 0-33.8 10-40.46 18.75-4.37 5.59-3 10.84 2.8 15.37l8.58 6.88c5.61 4.56 11 2.47 16.12-2.44a13.44 13.44 0 0 1 9.46-3.84c3.33 0 9.28 1.56 9.28 8.75C51 248.19 0 257.31 0 304.59v4C0 316 5.08 320 12.09 320z"/></svg></button>
+
+      <button 
+        class="
+          wrap-code-button
+          tw:select-none 
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.is-wrap]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle code wrap"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M16 132h416c8.837 0 16-7.163 16-16V76c0-8.837-7.163-16-16-16H16C7.163 60 0 67.163 0 76v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16z"/></svg></button>
+      
+      <button 
+        class="
+          copy-code-button
+          tw:select-none
+          tw:mx-2 
+          tw:hidden
+          tw:group-[.is-open]:block
+          tw:hover:text-fgColor-link 
+          tw:print:hidden!"
+        title="Copy code">
+          <span class="copy-icon tw:block"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M433.941 65.941l-51.882-51.882A48 48 0 0 0 348.118 0H176c-26.51 0-48 21.49-48 48v48H48c-26.51 0-48 21.49-48 48v320c0 26.51 21.49 48 48 48h224c26.51 0 48-21.49 48-48v-48h80c26.51 0 48-21.49 48-48V99.882a48 48 0 0 0-14.059-33.941zM266 464H54a6 6 0 0 1-6-6V150a6 6 0 0 1 6-6h74v224c0 26.51 21.49 48 48 48h96v42a6 6 0 0 1-6 6zm128-96H182a6 6 0 0 1-6-6V54a6 6 0 0 1 6-6h106v88c0 13.255 10.745 24 24 24h88v202a6 6 0 0 1-6 6zm6-256h-64V48h9.632c1.591 0 3.117.632 4.243 1.757l48.368 48.368a6 6 0 0 1 1.757 4.243V112z"/></svg></span>
+          <span class="check-icon tw:hidden"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/></svg></span>
+      </button>
+        
+      <button 
+        class="
+          tw:select-none 
+          tw:mx-2 
+          tw:block 
+          tw:group-[.is-open]:hidden 
+          tw:print:hidden!" 
+        disabled
+        aria-hidden="true"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M328 256c0 39.8-32.2 72-72 72s-72-32.2-72-72 32.2-72 72-72 72 32.2 72 72zm104-72c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72zm-352 0c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72z"/></svg></button>
+    </div>
+  </div>
+  <pre style="counter-reset: codeblock;" class="tw:block tw:m-0 tw:p-0"><code 
+    id="codeblock-id-4" 
+    class="
+      chroma 
+      tw:block! 
+      tw:p-0
+      tw:m-0
+      tw:transition-[max-height] 
+      tw:duration-500 
+      tw:ease-in-out 
+      tw:group-[.is-closed]:max-h-0! 
+      tw:group-[.is-wrap]:text-wrap
+      tw:overflow-y-hidden
+      tw:overflow-x-auto
+      tw:scrollbar-thin
+      "><span class="line"><span class="cl"><span class="cm">/* coalesce any contigous freed chunks */</span>
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="o">*</span><span class="nf">coalesce</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">bp</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">prev_chunk_allocated</span> <span class="o">=</span> <span class="nf">GET_ALLOC</span><span class="p">(</span><span class="nf">PREV_FTRP</span><span class="p">(</span><span class="n">bp</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">next_chunk_allocated</span> <span class="o">=</span> <span class="nf">GET_ALLOC</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">)));</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">size</span> <span class="o">=</span> <span class="nf">GET_SIZE</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">bp</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/* if both adjacent chunks are allocated then return bp */</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">prev_chunk_allocated</span> <span class="o">&amp;&amp;</span> <span class="n">next_chunk_allocated</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">bp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/*
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * if prev adjacent chunk is allocated but next is freed then increase the 
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * size of current chunk with of next chunk then unlink both chunks from
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * the free list and insert the new coalesced chunk at the head of free list
+</span></span></span><span class="line"><span class="cl"><span class="cm">     */</span>
+</span></span><span class="line"><span class="cl">    <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">prev_chunk_allocated</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="n">next_chunk_allocated</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">unlink_chunk</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">unlink_chunk</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">size</span> <span class="o">+=</span> <span class="nf">GET_SIZE</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">)));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">bp</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="n">bp</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        
+</span></span><span class="line"><span class="cl">        <span class="nf">insert_at_head</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="cm">/*
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * if prev adjacent chunk is freed but next is not then increase the size
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * of prev chunk with of the current chunk then unlink both chunks from the
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * free list and insert the new coalesced chunk at the head of free list 
+</span></span></span><span class="line"><span class="cl"><span class="cm">     */</span>
+</span></span><span class="line"><span class="cl">    <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">prev_chunk_allocated</span> <span class="o">&amp;&amp;</span> <span class="n">next_chunk_allocated</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">unlink_chunk</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">unlink_chunk</span><span class="p">(</span><span class="nf">PREV_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">size</span> <span class="o">+=</span> <span class="nf">GET_SIZE</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="nf">PREV_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">)));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="n">bp</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="nf">PREV_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">)),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="nf">insert_at_head</span><span class="p">(</span><span class="nf">PREV_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="n">bp</span> <span class="o">=</span> <span class="nf">PREV_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/*
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * if both adcanet chunks are freed then increment size with the size of 
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * but adjacent chunks then unlink all 3 chunks and insert the coalesced 
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * one at the head of free list
+</span></span></span><span class="line"><span class="cl"><span class="cm">     */</span>
+</span></span><span class="line"><span class="cl">    <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">prev_chunk_allocated</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="n">next_chunk_allocated</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">unlink_chunk</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">unlink_chunk</span><span class="p">(</span><span class="nf">PREV_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">unlink_chunk</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">size</span> <span class="o">+=</span> <span class="nf">GET_SIZE</span><span class="p">(</span><span class="n">bp</span><span class="o">-</span><span class="n">DSIZE</span><span class="o">-</span><span class="n">DSIZE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">size</span> <span class="o">+=</span> <span class="nf">GET_SIZE</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="n">bp</span><span class="p">)</span><span class="o">+</span><span class="n">DSIZE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="nf">PREV_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">)),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">)),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="nf">insert_at_head</span><span class="p">(</span><span class="nf">PREV_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="n">bp</span> <span class="o">=</span> <span class="nf">PREV_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">bp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span></span></span></code></pre>
+</div>
+<ul>
+<li>If first gets the <code>alloc bit</code> of the adjacent chunks of <code>bp</code>.</li>
+<li>If the both adjacent chunks are allocated it returns <code>bp</code></li>
+<li>before coalescing it unlinks all the operable chunks from the free list.</li>
+<li>If only next chunk is freed then it adds the size of next chunk in the size of current chunk and puts the new <code>size</code> and <code>alloc bit</code> in the new coalesced chunk.</li>
+<li>If only previous chunk is freed then it adds the size of current chunk to the size of previous chunk and puts the new <code>size</code> and <code>alloc bit</code> in the new coalesced chunk.</li>
+<li>If both adjacent chunk is freed then it adds the size of current and next chunk to the size of previous chunk and puts the new <code>size</code> and <code>alloc bit</code> in the new coalesced chunk.</li>
+<li>In all the 4 cases it insert the new coalesced chunk at the head of my explicit free list.</li>
+<li>It returns the start of the memory address of payload block of the coalesced chunk <strong>which is the memory address of payload block of previous chunk in case 3 and 4 and of next chunk in case 2</strong></li>
+</ul>
+<h3 id="unlink_chunk-and-insert_at_head" class="headerLink">
+    <a href="#unlink_chunk-and-insert_at_head" class="header-mark"></a>unlink_chunk and insert_at_head</h3><div class="code-block highlight is-open show-line-numbers  tw:group tw:my-2">
+  <div class="
+    
+    tw:flex 
+    tw:flex-row
+    tw:flex-1 
+    tw:justify-between 
+    tw:w-full tw:bg-bgColor-secondary
+    ">      
+    <button 
+      class="
+        code-block-button
+        tw:mx-2 
+        tw:flex
+        tw:flex-row
+        tw:flex-1"
+      aria-hidden="true">
+          <span class="tw:group-[.is-open]:rotate-90 tw:transition-[transform] tw:duration-500 tw:ease-in-out tw:print:hidden! tw:w-min tw:h-min tw:my-1 tw:mx-1"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M285.476 272.971L91.132 467.314c-9.373 9.373-24.569 9.373-33.941 0l-22.667-22.667c-9.357-9.357-9.375-24.522-.04-33.901L188.505 256 34.484 101.255c-9.335-9.379-9.317-24.544.04-33.901l22.667-22.667c9.373-9.373 24.569-9.373 33.941 0L285.475 239.03c9.373 9.372 9.373 24.568.001 33.941z"/></svg></span>
+          <span class="tw:select-none tw:my-1! tw:block">c</span>
+      </button>
+
+   <div class="tw:flex">
+      <button 
+        class="
+          line-number-button
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.show-line-numbers]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle line numbers"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M61.77 401l17.5-20.15a19.92 19.92 0 0 0 5.07-14.19v-3.31C84.34 356 80.5 352 73 352H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8h22.83a157.41 157.41 0 0 0-11 12.31l-5.61 7c-4 5.07-5.25 10.13-2.8 14.88l1.05 1.93c3 5.76 6.29 7.88 12.25 7.88h4.73c10.33 0 15.94 2.44 15.94 9.09 0 4.72-4.2 8.22-14.36 8.22a41.54 41.54 0 0 1-15.47-3.12c-6.49-3.88-11.74-3.5-15.6 3.12l-5.59 9.31c-3.72 6.13-3.19 11.72 2.63 15.94 7.71 4.69 20.38 9.44 37 9.44 34.16 0 48.5-22.75 48.5-44.12-.03-14.38-9.12-29.76-28.73-34.88zM496 224H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zm0-160H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16V80a16 16 0 0 0-16-16zm0 320H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zM16 160h64a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H64V40a8 8 0 0 0-8-8H32a8 8 0 0 0-7.14 4.42l-8 16A8 8 0 0 0 24 64h8v64H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8zm-3.91 160H80a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H41.32c3.29-10.29 48.34-18.68 48.34-56.44 0-29.06-25-39.56-44.47-39.56-21.36 0-33.8 10-40.46 18.75-4.37 5.59-3 10.84 2.8 15.37l8.58 6.88c5.61 4.56 11 2.47 16.12-2.44a13.44 13.44 0 0 1 9.46-3.84c3.33 0 9.28 1.56 9.28 8.75C51 248.19 0 257.31 0 304.59v4C0 316 5.08 320 12.09 320z"/></svg></button>
+
+      <button 
+        class="
+          wrap-code-button
+          tw:select-none 
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.is-wrap]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle code wrap"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M16 132h416c8.837 0 16-7.163 16-16V76c0-8.837-7.163-16-16-16H16C7.163 60 0 67.163 0 76v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16z"/></svg></button>
+      
+      <button 
+        class="
+          copy-code-button
+          tw:select-none
+          tw:mx-2 
+          tw:hidden
+          tw:group-[.is-open]:block
+          tw:hover:text-fgColor-link 
+          tw:print:hidden!"
+        title="Copy code">
+          <span class="copy-icon tw:block"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M433.941 65.941l-51.882-51.882A48 48 0 0 0 348.118 0H176c-26.51 0-48 21.49-48 48v48H48c-26.51 0-48 21.49-48 48v320c0 26.51 21.49 48 48 48h224c26.51 0 48-21.49 48-48v-48h80c26.51 0 48-21.49 48-48V99.882a48 48 0 0 0-14.059-33.941zM266 464H54a6 6 0 0 1-6-6V150a6 6 0 0 1 6-6h74v224c0 26.51 21.49 48 48 48h96v42a6 6 0 0 1-6 6zm128-96H182a6 6 0 0 1-6-6V54a6 6 0 0 1 6-6h106v88c0 13.255 10.745 24 24 24h88v202a6 6 0 0 1-6 6zm6-256h-64V48h9.632c1.591 0 3.117.632 4.243 1.757l48.368 48.368a6 6 0 0 1 1.757 4.243V112z"/></svg></span>
+          <span class="check-icon tw:hidden"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/></svg></span>
+      </button>
+        
+      <button 
+        class="
+          tw:select-none 
+          tw:mx-2 
+          tw:block 
+          tw:group-[.is-open]:hidden 
+          tw:print:hidden!" 
+        disabled
+        aria-hidden="true"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M328 256c0 39.8-32.2 72-72 72s-72-32.2-72-72 32.2-72 72-72 72 32.2 72 72zm104-72c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72zm-352 0c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72z"/></svg></button>
+    </div>
+  </div>
+  <pre style="counter-reset: codeblock;" class="tw:block tw:m-0 tw:p-0"><code 
+    id="codeblock-id-5" 
+    class="
+      chroma 
+      tw:block! 
+      tw:p-0
+      tw:m-0
+      tw:transition-[max-height] 
+      tw:duration-500 
+      tw:ease-in-out 
+      tw:group-[.is-closed]:max-h-0! 
+      tw:group-[.is-wrap]:text-wrap
+      tw:overflow-y-hidden
+      tw:overflow-x-auto
+      tw:scrollbar-thin
+      "><span class="line"><span class="cl"><span class="cm">/* unlinks a free chunk from the linked list of freed chunks */</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">unlink_chunk</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">bp</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">PREV_FREEDP</span><span class="p">(</span><span class="n">bp</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT_NEXT</span><span class="p">(</span><span class="nf">PREV_FREEDP</span><span class="p">(</span><span class="n">bp</span><span class="p">),</span> <span class="nf">NEXT_FREEDP</span><span class="p">(</span><span class="n">bp</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="k">else</span> <span class="n">free_listp</span> <span class="o">=</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="nf">NEXT_FREEDP</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">NEXT_FREEDP</span><span class="p">(</span><span class="n">bp</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT_PREV</span><span class="p">(</span><span class="nf">NEXT_FREEDP</span><span class="p">(</span><span class="n">bp</span><span class="p">),</span> <span class="nf">PREV_FREEDP</span><span class="p">(</span><span class="n">bp</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* insert a free chunk at the head of free list */</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">insert_at_head</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">bp</span><span class="p">)</span> 
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">PUT_PREV</span><span class="p">(</span><span class="n">bp</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">PUT_NEXT</span><span class="p">(</span><span class="n">bp</span><span class="p">,</span> <span class="p">(</span><span class="kt">long</span><span class="p">)</span><span class="n">free_listp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">free_listp</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT_PREV</span><span class="p">(</span><span class="n">free_listp</span><span class="p">,</span> <span class="p">(</span><span class="kt">long</span><span class="p">)</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">free_listp</span> <span class="o">=</span> <span class="n">bp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span></span></span></code></pre>
+</div>
+<p>These two are self explanatory, they unlinks and links a chunk in the doubly linked free list</p>
+<h3 id="mm_malloc" class="headerLink">
+    <a href="#mm_malloc" class="header-mark"></a>mm_malloc</h3><div class="code-block highlight is-open show-line-numbers  tw:group tw:my-2">
+  <div class="
+    
+    tw:flex 
+    tw:flex-row
+    tw:flex-1 
+    tw:justify-between 
+    tw:w-full tw:bg-bgColor-secondary
+    ">      
+    <button 
+      class="
+        code-block-button
+        tw:mx-2 
+        tw:flex
+        tw:flex-row
+        tw:flex-1"
+      aria-hidden="true">
+          <span class="tw:group-[.is-open]:rotate-90 tw:transition-[transform] tw:duration-500 tw:ease-in-out tw:print:hidden! tw:w-min tw:h-min tw:my-1 tw:mx-1"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M285.476 272.971L91.132 467.314c-9.373 9.373-24.569 9.373-33.941 0l-22.667-22.667c-9.357-9.357-9.375-24.522-.04-33.901L188.505 256 34.484 101.255c-9.335-9.379-9.317-24.544.04-33.901l22.667-22.667c9.373-9.373 24.569-9.373 33.941 0L285.475 239.03c9.373 9.372 9.373 24.568.001 33.941z"/></svg></span>
+          <span class="tw:select-none tw:my-1! tw:block">c</span>
+      </button>
+
+   <div class="tw:flex">
+      <button 
+        class="
+          line-number-button
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.show-line-numbers]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle line numbers"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M61.77 401l17.5-20.15a19.92 19.92 0 0 0 5.07-14.19v-3.31C84.34 356 80.5 352 73 352H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8h22.83a157.41 157.41 0 0 0-11 12.31l-5.61 7c-4 5.07-5.25 10.13-2.8 14.88l1.05 1.93c3 5.76 6.29 7.88 12.25 7.88h4.73c10.33 0 15.94 2.44 15.94 9.09 0 4.72-4.2 8.22-14.36 8.22a41.54 41.54 0 0 1-15.47-3.12c-6.49-3.88-11.74-3.5-15.6 3.12l-5.59 9.31c-3.72 6.13-3.19 11.72 2.63 15.94 7.71 4.69 20.38 9.44 37 9.44 34.16 0 48.5-22.75 48.5-44.12-.03-14.38-9.12-29.76-28.73-34.88zM496 224H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zm0-160H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16V80a16 16 0 0 0-16-16zm0 320H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zM16 160h64a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H64V40a8 8 0 0 0-8-8H32a8 8 0 0 0-7.14 4.42l-8 16A8 8 0 0 0 24 64h8v64H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8zm-3.91 160H80a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H41.32c3.29-10.29 48.34-18.68 48.34-56.44 0-29.06-25-39.56-44.47-39.56-21.36 0-33.8 10-40.46 18.75-4.37 5.59-3 10.84 2.8 15.37l8.58 6.88c5.61 4.56 11 2.47 16.12-2.44a13.44 13.44 0 0 1 9.46-3.84c3.33 0 9.28 1.56 9.28 8.75C51 248.19 0 257.31 0 304.59v4C0 316 5.08 320 12.09 320z"/></svg></button>
+
+      <button 
+        class="
+          wrap-code-button
+          tw:select-none 
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.is-wrap]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle code wrap"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M16 132h416c8.837 0 16-7.163 16-16V76c0-8.837-7.163-16-16-16H16C7.163 60 0 67.163 0 76v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16z"/></svg></button>
+      
+      <button 
+        class="
+          copy-code-button
+          tw:select-none
+          tw:mx-2 
+          tw:hidden
+          tw:group-[.is-open]:block
+          tw:hover:text-fgColor-link 
+          tw:print:hidden!"
+        title="Copy code">
+          <span class="copy-icon tw:block"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M433.941 65.941l-51.882-51.882A48 48 0 0 0 348.118 0H176c-26.51 0-48 21.49-48 48v48H48c-26.51 0-48 21.49-48 48v320c0 26.51 21.49 48 48 48h224c26.51 0 48-21.49 48-48v-48h80c26.51 0 48-21.49 48-48V99.882a48 48 0 0 0-14.059-33.941zM266 464H54a6 6 0 0 1-6-6V150a6 6 0 0 1 6-6h74v224c0 26.51 21.49 48 48 48h96v42a6 6 0 0 1-6 6zm128-96H182a6 6 0 0 1-6-6V54a6 6 0 0 1 6-6h106v88c0 13.255 10.745 24 24 24h88v202a6 6 0 0 1-6 6zm6-256h-64V48h9.632c1.591 0 3.117.632 4.243 1.757l48.368 48.368a6 6 0 0 1 1.757 4.243V112z"/></svg></span>
+          <span class="check-icon tw:hidden"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/></svg></span>
+      </button>
+        
+      <button 
+        class="
+          tw:select-none 
+          tw:mx-2 
+          tw:block 
+          tw:group-[.is-open]:hidden 
+          tw:print:hidden!" 
+        disabled
+        aria-hidden="true"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M328 256c0 39.8-32.2 72-72 72s-72-32.2-72-72 32.2-72 72-72 72 32.2 72 72zm104-72c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72zm-352 0c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72z"/></svg></button>
+    </div>
+  </div>
+  <pre style="counter-reset: codeblock;" class="tw:block tw:m-0 tw:p-0"><code 
+    id="codeblock-id-6" 
+    class="
+      chroma 
+      tw:block! 
+      tw:p-0
+      tw:m-0
+      tw:transition-[max-height] 
+      tw:duration-500 
+      tw:ease-in-out 
+      tw:group-[.is-closed]:max-h-0! 
+      tw:group-[.is-wrap]:text-wrap
+      tw:overflow-y-hidden
+      tw:overflow-x-auto
+      tw:scrollbar-thin
+      "><span class="line"><span class="cl"><span class="cm">/* 
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * mm_malloc - allocate a new chunk by first searching the free list. If no
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * freed block satisfies the size then extend the heap and cut extra size in 
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * bothe condition by calling place(). returns the payload address of new chunk
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * allocated
+</span></span></span><span class="line"><span class="cl"><span class="cm"> */</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="o">*</span><span class="nf">mm_malloc</span><span class="p">(</span><span class="kt">size_t</span> <span class="n">size</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">asize</span> <span class="o">=</span> <span class="nf">ALIGN</span><span class="p">(</span><span class="n">size</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">asize</span> <span class="o">+=</span> <span class="mi">16</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="kt">void</span> <span class="o">*</span><span class="n">bp</span> <span class="o">=</span> <span class="nf">find_free</span><span class="p">(</span><span class="n">asize</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">bp</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">place</span><span class="p">(</span><span class="n">bp</span><span class="p">,</span> <span class="n">asize</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">bp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">esize</span> <span class="o">=</span> <span class="nf">MAX</span><span class="p">(</span><span class="n">asize</span><span class="p">,</span> <span class="p">(</span><span class="n">CHUNKSIZE</span><span class="o">+</span><span class="mi">16</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">bp</span> <span class="o">=</span> <span class="nf">extend_heap</span><span class="p">(</span><span class="n">esize</span><span class="o">/</span><span class="n">DSIZE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">bp</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nf">unlink_chunk</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">bp</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="nf">GET_SIZE</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">bp</span><span class="p">)),</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">PUT</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="n">bp</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="nf">GET_SIZE</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">bp</span><span class="p">)),</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">  
+</span></span><span class="line"><span class="cl">    <span class="nf">place</span><span class="p">(</span><span class="n">bp</span><span class="p">,</span> <span class="n">asize</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">bp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span></span></span></code></pre>
+</div>
+<ul>
+<li>It first aligns the size to my <code>8 bytes</code> alignment policy and adds <code>16</code> to it for the header and footer field for the allocated chunk.</li>
+<li>It searches for a free chunk that satisfies the requested size and if it finds one then it places it and return its payload address</li>
+<li>If a free chunk is not found then it extends the heap using <code>extend_heap()</code> and then unlinks the the newly created free chunk and mark it allocated. It then places it and return its payload address.</li>
+</ul>
+<h3 id="place" class="headerLink">
+    <a href="#place" class="header-mark"></a>place</h3><div class="code-block highlight is-open show-line-numbers  tw:group tw:my-2">
+  <div class="
+    
+    tw:flex 
+    tw:flex-row
+    tw:flex-1 
+    tw:justify-between 
+    tw:w-full tw:bg-bgColor-secondary
+    ">      
+    <button 
+      class="
+        code-block-button
+        tw:mx-2 
+        tw:flex
+        tw:flex-row
+        tw:flex-1"
+      aria-hidden="true">
+          <span class="tw:group-[.is-open]:rotate-90 tw:transition-[transform] tw:duration-500 tw:ease-in-out tw:print:hidden! tw:w-min tw:h-min tw:my-1 tw:mx-1"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M285.476 272.971L91.132 467.314c-9.373 9.373-24.569 9.373-33.941 0l-22.667-22.667c-9.357-9.357-9.375-24.522-.04-33.901L188.505 256 34.484 101.255c-9.335-9.379-9.317-24.544.04-33.901l22.667-22.667c9.373-9.373 24.569-9.373 33.941 0L285.475 239.03c9.373 9.372 9.373 24.568.001 33.941z"/></svg></span>
+          <span class="tw:select-none tw:my-1! tw:block">c</span>
+      </button>
+
+   <div class="tw:flex">
+      <button 
+        class="
+          line-number-button
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.show-line-numbers]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle line numbers"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M61.77 401l17.5-20.15a19.92 19.92 0 0 0 5.07-14.19v-3.31C84.34 356 80.5 352 73 352H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8h22.83a157.41 157.41 0 0 0-11 12.31l-5.61 7c-4 5.07-5.25 10.13-2.8 14.88l1.05 1.93c3 5.76 6.29 7.88 12.25 7.88h4.73c10.33 0 15.94 2.44 15.94 9.09 0 4.72-4.2 8.22-14.36 8.22a41.54 41.54 0 0 1-15.47-3.12c-6.49-3.88-11.74-3.5-15.6 3.12l-5.59 9.31c-3.72 6.13-3.19 11.72 2.63 15.94 7.71 4.69 20.38 9.44 37 9.44 34.16 0 48.5-22.75 48.5-44.12-.03-14.38-9.12-29.76-28.73-34.88zM496 224H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zm0-160H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16V80a16 16 0 0 0-16-16zm0 320H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zM16 160h64a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H64V40a8 8 0 0 0-8-8H32a8 8 0 0 0-7.14 4.42l-8 16A8 8 0 0 0 24 64h8v64H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8zm-3.91 160H80a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H41.32c3.29-10.29 48.34-18.68 48.34-56.44 0-29.06-25-39.56-44.47-39.56-21.36 0-33.8 10-40.46 18.75-4.37 5.59-3 10.84 2.8 15.37l8.58 6.88c5.61 4.56 11 2.47 16.12-2.44a13.44 13.44 0 0 1 9.46-3.84c3.33 0 9.28 1.56 9.28 8.75C51 248.19 0 257.31 0 304.59v4C0 316 5.08 320 12.09 320z"/></svg></button>
+
+      <button 
+        class="
+          wrap-code-button
+          tw:select-none 
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.is-wrap]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle code wrap"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M16 132h416c8.837 0 16-7.163 16-16V76c0-8.837-7.163-16-16-16H16C7.163 60 0 67.163 0 76v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16z"/></svg></button>
+      
+      <button 
+        class="
+          copy-code-button
+          tw:select-none
+          tw:mx-2 
+          tw:hidden
+          tw:group-[.is-open]:block
+          tw:hover:text-fgColor-link 
+          tw:print:hidden!"
+        title="Copy code">
+          <span class="copy-icon tw:block"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M433.941 65.941l-51.882-51.882A48 48 0 0 0 348.118 0H176c-26.51 0-48 21.49-48 48v48H48c-26.51 0-48 21.49-48 48v320c0 26.51 21.49 48 48 48h224c26.51 0 48-21.49 48-48v-48h80c26.51 0 48-21.49 48-48V99.882a48 48 0 0 0-14.059-33.941zM266 464H54a6 6 0 0 1-6-6V150a6 6 0 0 1 6-6h74v224c0 26.51 21.49 48 48 48h96v42a6 6 0 0 1-6 6zm128-96H182a6 6 0 0 1-6-6V54a6 6 0 0 1 6-6h106v88c0 13.255 10.745 24 24 24h88v202a6 6 0 0 1-6 6zm6-256h-64V48h9.632c1.591 0 3.117.632 4.243 1.757l48.368 48.368a6 6 0 0 1 1.757 4.243V112z"/></svg></span>
+          <span class="check-icon tw:hidden"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/></svg></span>
+      </button>
+        
+      <button 
+        class="
+          tw:select-none 
+          tw:mx-2 
+          tw:block 
+          tw:group-[.is-open]:hidden 
+          tw:print:hidden!" 
+        disabled
+        aria-hidden="true"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M328 256c0 39.8-32.2 72-72 72s-72-32.2-72-72 32.2-72 72-72 72 32.2 72 72zm104-72c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72zm-352 0c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72z"/></svg></button>
+    </div>
+  </div>
+  <pre style="counter-reset: codeblock;" class="tw:block tw:m-0 tw:p-0"><code 
+    id="codeblock-id-7" 
+    class="
+      chroma 
+      tw:block! 
+      tw:p-0
+      tw:m-0
+      tw:transition-[max-height] 
+      tw:duration-500 
+      tw:ease-in-out 
+      tw:group-[.is-closed]:max-h-0! 
+      tw:group-[.is-wrap]:text-wrap
+      tw:overflow-y-hidden
+      tw:overflow-x-auto
+      tw:scrollbar-thin
+      "><span class="line"><span class="cl"><span class="cm">/*
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * if the residual size is greater or equal to the size of minimum chunk size 
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * then cut that extra size chunk and mark it free and insert it to the explicit
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * free list
+</span></span></span><span class="line"><span class="cl"><span class="cm"> */</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">place</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">bp</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">size</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">GET_SIZE</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">bp</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="n">size</span> <span class="o">+</span> <span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="n">DSIZE</span><span class="p">)))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">size_t</span> <span class="n">default_size</span> <span class="o">=</span> <span class="nf">GET_SIZE</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">bp</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">size_t</span> <span class="n">curr_size</span> <span class="o">=</span> <span class="n">size</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">size_t</span> <span class="n">next_size</span> <span class="o">=</span> <span class="n">default_size</span> <span class="o">-</span> <span class="n">size</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1">// put size and alloc bit of the allocated current block
+</span></span></span><span class="line"><span class="cl">        <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">bp</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">curr_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="n">bp</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">curr_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1">// put size and unalloc bit of the new freed block
+</span></span></span><span class="line"><span class="cl">        <span class="kt">void</span> <span class="o">*</span><span class="n">nxt_bk</span> <span class="o">=</span> <span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">nxt_bk</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">next_size</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="n">nxt_bk</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">next_size</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">insert_at_head</span><span class="p">(</span><span class="n">nxt_bk</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span></span></span></code></pre>
+</div>
+<ul>
+<li>The job of <code>place()</code> is to cut off any extra space from the allocated chunk to minimise any internal fragmentation.</li>
+<li>It first checks if the size of the chunk is greater than the requested size by minimum chunk size (which is 24).</li>
+<li>if yes then it cuts the residual memory region and mark it free and insert it to the free list.</li>
+<li>It puts the new optimal size and <code>alloc bit</code> to the current allocated chunk.</li>
+</ul>
+<h3 id="find_free" class="headerLink">
+    <a href="#find_free" class="header-mark"></a>find_free</h3><div class="code-block highlight is-open show-line-numbers  tw:group tw:my-2">
+  <div class="
+    
+    tw:flex 
+    tw:flex-row
+    tw:flex-1 
+    tw:justify-between 
+    tw:w-full tw:bg-bgColor-secondary
+    ">      
+    <button 
+      class="
+        code-block-button
+        tw:mx-2 
+        tw:flex
+        tw:flex-row
+        tw:flex-1"
+      aria-hidden="true">
+          <span class="tw:group-[.is-open]:rotate-90 tw:transition-[transform] tw:duration-500 tw:ease-in-out tw:print:hidden! tw:w-min tw:h-min tw:my-1 tw:mx-1"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M285.476 272.971L91.132 467.314c-9.373 9.373-24.569 9.373-33.941 0l-22.667-22.667c-9.357-9.357-9.375-24.522-.04-33.901L188.505 256 34.484 101.255c-9.335-9.379-9.317-24.544.04-33.901l22.667-22.667c9.373-9.373 24.569-9.373 33.941 0L285.475 239.03c9.373 9.372 9.373 24.568.001 33.941z"/></svg></span>
+          <span class="tw:select-none tw:my-1! tw:block">c</span>
+      </button>
+
+   <div class="tw:flex">
+      <button 
+        class="
+          line-number-button
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.show-line-numbers]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle line numbers"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M61.77 401l17.5-20.15a19.92 19.92 0 0 0 5.07-14.19v-3.31C84.34 356 80.5 352 73 352H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8h22.83a157.41 157.41 0 0 0-11 12.31l-5.61 7c-4 5.07-5.25 10.13-2.8 14.88l1.05 1.93c3 5.76 6.29 7.88 12.25 7.88h4.73c10.33 0 15.94 2.44 15.94 9.09 0 4.72-4.2 8.22-14.36 8.22a41.54 41.54 0 0 1-15.47-3.12c-6.49-3.88-11.74-3.5-15.6 3.12l-5.59 9.31c-3.72 6.13-3.19 11.72 2.63 15.94 7.71 4.69 20.38 9.44 37 9.44 34.16 0 48.5-22.75 48.5-44.12-.03-14.38-9.12-29.76-28.73-34.88zM496 224H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zm0-160H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16V80a16 16 0 0 0-16-16zm0 320H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zM16 160h64a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H64V40a8 8 0 0 0-8-8H32a8 8 0 0 0-7.14 4.42l-8 16A8 8 0 0 0 24 64h8v64H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8zm-3.91 160H80a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H41.32c3.29-10.29 48.34-18.68 48.34-56.44 0-29.06-25-39.56-44.47-39.56-21.36 0-33.8 10-40.46 18.75-4.37 5.59-3 10.84 2.8 15.37l8.58 6.88c5.61 4.56 11 2.47 16.12-2.44a13.44 13.44 0 0 1 9.46-3.84c3.33 0 9.28 1.56 9.28 8.75C51 248.19 0 257.31 0 304.59v4C0 316 5.08 320 12.09 320z"/></svg></button>
+
+      <button 
+        class="
+          wrap-code-button
+          tw:select-none 
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.is-wrap]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle code wrap"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M16 132h416c8.837 0 16-7.163 16-16V76c0-8.837-7.163-16-16-16H16C7.163 60 0 67.163 0 76v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16z"/></svg></button>
+      
+      <button 
+        class="
+          copy-code-button
+          tw:select-none
+          tw:mx-2 
+          tw:hidden
+          tw:group-[.is-open]:block
+          tw:hover:text-fgColor-link 
+          tw:print:hidden!"
+        title="Copy code">
+          <span class="copy-icon tw:block"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M433.941 65.941l-51.882-51.882A48 48 0 0 0 348.118 0H176c-26.51 0-48 21.49-48 48v48H48c-26.51 0-48 21.49-48 48v320c0 26.51 21.49 48 48 48h224c26.51 0 48-21.49 48-48v-48h80c26.51 0 48-21.49 48-48V99.882a48 48 0 0 0-14.059-33.941zM266 464H54a6 6 0 0 1-6-6V150a6 6 0 0 1 6-6h74v224c0 26.51 21.49 48 48 48h96v42a6 6 0 0 1-6 6zm128-96H182a6 6 0 0 1-6-6V54a6 6 0 0 1 6-6h106v88c0 13.255 10.745 24 24 24h88v202a6 6 0 0 1-6 6zm6-256h-64V48h9.632c1.591 0 3.117.632 4.243 1.757l48.368 48.368a6 6 0 0 1 1.757 4.243V112z"/></svg></span>
+          <span class="check-icon tw:hidden"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/></svg></span>
+      </button>
+        
+      <button 
+        class="
+          tw:select-none 
+          tw:mx-2 
+          tw:block 
+          tw:group-[.is-open]:hidden 
+          tw:print:hidden!" 
+        disabled
+        aria-hidden="true"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M328 256c0 39.8-32.2 72-72 72s-72-32.2-72-72 32.2-72 72-72 72 32.2 72 72zm104-72c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72zm-352 0c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72z"/></svg></button>
+    </div>
+  </div>
+  <pre style="counter-reset: codeblock;" class="tw:block tw:m-0 tw:p-0"><code 
+    id="codeblock-id-8" 
+    class="
+      chroma 
+      tw:block! 
+      tw:p-0
+      tw:m-0
+      tw:transition-[max-height] 
+      tw:duration-500 
+      tw:ease-in-out 
+      tw:group-[.is-closed]:max-h-0! 
+      tw:group-[.is-wrap]:text-wrap
+      tw:overflow-y-hidden
+      tw:overflow-x-auto
+      tw:scrollbar-thin
+      "><span class="line"><span class="cl"><span class="cm">/* 
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * traverses the explicit free list and if the size of a freed chunk is 
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * greater than or equal to the size requested then it sets the allocaated
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * of the chunk, unlinks it from the free list and return the block pointer
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * otherwise it returns NULL
+</span></span></span><span class="line"><span class="cl"><span class="cm"> */</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="o">*</span><span class="nf">find_free</span><span class="p">(</span><span class="kt">size_t</span> <span class="n">size</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">void</span> <span class="o">*</span><span class="n">bp</span> <span class="o">=</span> <span class="n">free_listp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="p">(</span><span class="n">bp</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">size_t</span> <span class="n">chunk_size</span> <span class="o">=</span> <span class="nf">GET_SIZE</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">bp</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">chunk_size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">chunk_size</span> <span class="o">&gt;=</span> <span class="n">size</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">unlink_chunk</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">bp</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">chunk_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">PUT</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="n">bp</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">chunk_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="n">bp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="n">bp</span> <span class="o">=</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="nf">NEXT_FREEDP</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span></span></span></code></pre>
+</div>
+<p>It traverses the the free list and if the size of a freed chunk is greater than or equal to the requested size then it unlinks that chunk, mark it free and returns its payload address.</p>
+<h3 id="mm_free" class="headerLink">
+    <a href="#mm_free" class="header-mark"></a>mm_free</h3><div class="code-block highlight is-open show-line-numbers  tw:group tw:my-2">
+  <div class="
+    
+    tw:flex 
+    tw:flex-row
+    tw:flex-1 
+    tw:justify-between 
+    tw:w-full tw:bg-bgColor-secondary
+    ">      
+    <button 
+      class="
+        code-block-button
+        tw:mx-2 
+        tw:flex
+        tw:flex-row
+        tw:flex-1"
+      aria-hidden="true">
+          <span class="tw:group-[.is-open]:rotate-90 tw:transition-[transform] tw:duration-500 tw:ease-in-out tw:print:hidden! tw:w-min tw:h-min tw:my-1 tw:mx-1"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M285.476 272.971L91.132 467.314c-9.373 9.373-24.569 9.373-33.941 0l-22.667-22.667c-9.357-9.357-9.375-24.522-.04-33.901L188.505 256 34.484 101.255c-9.335-9.379-9.317-24.544.04-33.901l22.667-22.667c9.373-9.373 24.569-9.373 33.941 0L285.475 239.03c9.373 9.372 9.373 24.568.001 33.941z"/></svg></span>
+          <span class="tw:select-none tw:my-1! tw:block">c</span>
+      </button>
+
+   <div class="tw:flex">
+      <button 
+        class="
+          line-number-button
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.show-line-numbers]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle line numbers"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M61.77 401l17.5-20.15a19.92 19.92 0 0 0 5.07-14.19v-3.31C84.34 356 80.5 352 73 352H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8h22.83a157.41 157.41 0 0 0-11 12.31l-5.61 7c-4 5.07-5.25 10.13-2.8 14.88l1.05 1.93c3 5.76 6.29 7.88 12.25 7.88h4.73c10.33 0 15.94 2.44 15.94 9.09 0 4.72-4.2 8.22-14.36 8.22a41.54 41.54 0 0 1-15.47-3.12c-6.49-3.88-11.74-3.5-15.6 3.12l-5.59 9.31c-3.72 6.13-3.19 11.72 2.63 15.94 7.71 4.69 20.38 9.44 37 9.44 34.16 0 48.5-22.75 48.5-44.12-.03-14.38-9.12-29.76-28.73-34.88zM496 224H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zm0-160H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16V80a16 16 0 0 0-16-16zm0 320H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zM16 160h64a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H64V40a8 8 0 0 0-8-8H32a8 8 0 0 0-7.14 4.42l-8 16A8 8 0 0 0 24 64h8v64H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8zm-3.91 160H80a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H41.32c3.29-10.29 48.34-18.68 48.34-56.44 0-29.06-25-39.56-44.47-39.56-21.36 0-33.8 10-40.46 18.75-4.37 5.59-3 10.84 2.8 15.37l8.58 6.88c5.61 4.56 11 2.47 16.12-2.44a13.44 13.44 0 0 1 9.46-3.84c3.33 0 9.28 1.56 9.28 8.75C51 248.19 0 257.31 0 304.59v4C0 316 5.08 320 12.09 320z"/></svg></button>
+
+      <button 
+        class="
+          wrap-code-button
+          tw:select-none 
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.is-wrap]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle code wrap"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M16 132h416c8.837 0 16-7.163 16-16V76c0-8.837-7.163-16-16-16H16C7.163 60 0 67.163 0 76v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16z"/></svg></button>
+      
+      <button 
+        class="
+          copy-code-button
+          tw:select-none
+          tw:mx-2 
+          tw:hidden
+          tw:group-[.is-open]:block
+          tw:hover:text-fgColor-link 
+          tw:print:hidden!"
+        title="Copy code">
+          <span class="copy-icon tw:block"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M433.941 65.941l-51.882-51.882A48 48 0 0 0 348.118 0H176c-26.51 0-48 21.49-48 48v48H48c-26.51 0-48 21.49-48 48v320c0 26.51 21.49 48 48 48h224c26.51 0 48-21.49 48-48v-48h80c26.51 0 48-21.49 48-48V99.882a48 48 0 0 0-14.059-33.941zM266 464H54a6 6 0 0 1-6-6V150a6 6 0 0 1 6-6h74v224c0 26.51 21.49 48 48 48h96v42a6 6 0 0 1-6 6zm128-96H182a6 6 0 0 1-6-6V54a6 6 0 0 1 6-6h106v88c0 13.255 10.745 24 24 24h88v202a6 6 0 0 1-6 6zm6-256h-64V48h9.632c1.591 0 3.117.632 4.243 1.757l48.368 48.368a6 6 0 0 1 1.757 4.243V112z"/></svg></span>
+          <span class="check-icon tw:hidden"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/></svg></span>
+      </button>
+        
+      <button 
+        class="
+          tw:select-none 
+          tw:mx-2 
+          tw:block 
+          tw:group-[.is-open]:hidden 
+          tw:print:hidden!" 
+        disabled
+        aria-hidden="true"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M328 256c0 39.8-32.2 72-72 72s-72-32.2-72-72 32.2-72 72-72 72 32.2 72 72zm104-72c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72zm-352 0c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72z"/></svg></button>
+    </div>
+  </div>
+  <pre style="counter-reset: codeblock;" class="tw:block tw:m-0 tw:p-0"><code 
+    id="codeblock-id-9" 
+    class="
+      chroma 
+      tw:block! 
+      tw:p-0
+      tw:m-0
+      tw:transition-[max-height] 
+      tw:duration-500 
+      tw:ease-in-out 
+      tw:group-[.is-closed]:max-h-0! 
+      tw:group-[.is-wrap]:text-wrap
+      tw:overflow-y-hidden
+      tw:overflow-x-auto
+      tw:scrollbar-thin
+      "><span class="line"><span class="cl"><span class="cm">/*
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * mm_free - sets the allocated bit of the chunk to 0 and adds the chunk to 
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * free list and then calls coalesce().
+</span></span></span><span class="line"><span class="cl"><span class="cm"> */</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">mm_free</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">ptr</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">ptr</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">size</span> <span class="o">=</span> <span class="nf">GET_SIZE</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">ptr</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">ptr</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">PUT</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="n">ptr</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">insert_at_head</span><span class="p">(</span><span class="n">ptr</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">coalesce</span><span class="p">(</span><span class="n">ptr</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span></span></span></code></pre>
+</div>
+<p>This is a very simple function</p>
+<ul>
+<li>It first checks if the chunk to free is not a null pointer, if yes it returns.</li>
+<li>It then marks that chunk freed and insert it to the explicit free list.</li>
+<li>It calls <code>coalesce()</code> on the freed chunk to merge any adjacent freed chunk to it.</li>
+</ul>
+<h3 id="mm_realloc" class="headerLink">
+    <a href="#mm_realloc" class="header-mark"></a>mm_realloc</h3><div class="code-block highlight is-open show-line-numbers  tw:group tw:my-2">
+  <div class="
+    
+    tw:flex 
+    tw:flex-row
+    tw:flex-1 
+    tw:justify-between 
+    tw:w-full tw:bg-bgColor-secondary
+    ">      
+    <button 
+      class="
+        code-block-button
+        tw:mx-2 
+        tw:flex
+        tw:flex-row
+        tw:flex-1"
+      aria-hidden="true">
+          <span class="tw:group-[.is-open]:rotate-90 tw:transition-[transform] tw:duration-500 tw:ease-in-out tw:print:hidden! tw:w-min tw:h-min tw:my-1 tw:mx-1"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M285.476 272.971L91.132 467.314c-9.373 9.373-24.569 9.373-33.941 0l-22.667-22.667c-9.357-9.357-9.375-24.522-.04-33.901L188.505 256 34.484 101.255c-9.335-9.379-9.317-24.544.04-33.901l22.667-22.667c9.373-9.373 24.569-9.373 33.941 0L285.475 239.03c9.373 9.372 9.373 24.568.001 33.941z"/></svg></span>
+          <span class="tw:select-none tw:my-1! tw:block">c</span>
+      </button>
+
+   <div class="tw:flex">
+      <button 
+        class="
+          line-number-button
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.show-line-numbers]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle line numbers"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M61.77 401l17.5-20.15a19.92 19.92 0 0 0 5.07-14.19v-3.31C84.34 356 80.5 352 73 352H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8h22.83a157.41 157.41 0 0 0-11 12.31l-5.61 7c-4 5.07-5.25 10.13-2.8 14.88l1.05 1.93c3 5.76 6.29 7.88 12.25 7.88h4.73c10.33 0 15.94 2.44 15.94 9.09 0 4.72-4.2 8.22-14.36 8.22a41.54 41.54 0 0 1-15.47-3.12c-6.49-3.88-11.74-3.5-15.6 3.12l-5.59 9.31c-3.72 6.13-3.19 11.72 2.63 15.94 7.71 4.69 20.38 9.44 37 9.44 34.16 0 48.5-22.75 48.5-44.12-.03-14.38-9.12-29.76-28.73-34.88zM496 224H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zm0-160H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16V80a16 16 0 0 0-16-16zm0 320H176a16 16 0 0 0-16 16v32a16 16 0 0 0 16 16h320a16 16 0 0 0 16-16v-32a16 16 0 0 0-16-16zM16 160h64a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H64V40a8 8 0 0 0-8-8H32a8 8 0 0 0-7.14 4.42l-8 16A8 8 0 0 0 24 64h8v64H16a8 8 0 0 0-8 8v16a8 8 0 0 0 8 8zm-3.91 160H80a8 8 0 0 0 8-8v-16a8 8 0 0 0-8-8H41.32c3.29-10.29 48.34-18.68 48.34-56.44 0-29.06-25-39.56-44.47-39.56-21.36 0-33.8 10-40.46 18.75-4.37 5.59-3 10.84 2.8 15.37l8.58 6.88c5.61 4.56 11 2.47 16.12-2.44a13.44 13.44 0 0 1 9.46-3.84c3.33 0 9.28 1.56 9.28 8.75C51 248.19 0 257.31 0 304.59v4C0 316 5.08 320 12.09 320z"/></svg></button>
+
+      <button 
+        class="
+          wrap-code-button
+          tw:select-none 
+          tw:mx-2 
+          tw:hidden 
+          tw:group-[.is-open]:block 
+          tw:group-[.is-wrap]:text-fgColor-link 
+          tw:print:hidden!" 
+        title="Toggle code wrap"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M16 132h416c8.837 0 16-7.163 16-16V76c0-8.837-7.163-16-16-16H16C7.163 60 0 67.163 0 76v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16z"/></svg></button>
+      
+      <button 
+        class="
+          copy-code-button
+          tw:select-none
+          tw:mx-2 
+          tw:hidden
+          tw:group-[.is-open]:block
+          tw:hover:text-fgColor-link 
+          tw:print:hidden!"
+        title="Copy code">
+          <span class="copy-icon tw:block"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M433.941 65.941l-51.882-51.882A48 48 0 0 0 348.118 0H176c-26.51 0-48 21.49-48 48v48H48c-26.51 0-48 21.49-48 48v320c0 26.51 21.49 48 48 48h224c26.51 0 48-21.49 48-48v-48h80c26.51 0 48-21.49 48-48V99.882a48 48 0 0 0-14.059-33.941zM266 464H54a6 6 0 0 1-6-6V150a6 6 0 0 1 6-6h74v224c0 26.51 21.49 48 48 48h96v42a6 6 0 0 1-6 6zm128-96H182a6 6 0 0 1-6-6V54a6 6 0 0 1 6-6h106v88c0 13.255 10.745 24 24 24h88v202a6 6 0 0 1-6 6zm6-256h-64V48h9.632c1.591 0 3.117.632 4.243 1.757l48.368 48.368a6 6 0 0 1 1.757 4.243V112z"/></svg></span>
+          <span class="check-icon tw:hidden"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"/></svg></span>
+      </button>
+        
+      <button 
+        class="
+          tw:select-none 
+          tw:mx-2 
+          tw:block 
+          tw:group-[.is-open]:hidden 
+          tw:print:hidden!" 
+        disabled
+        aria-hidden="true"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M328 256c0 39.8-32.2 72-72 72s-72-32.2-72-72 32.2-72 72-72 72 32.2 72 72zm104-72c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72zm-352 0c-39.8 0-72 32.2-72 72s32.2 72 72 72 72-32.2 72-72-32.2-72-72-72z"/></svg></button>
+    </div>
+  </div>
+  <pre style="counter-reset: codeblock;" class="tw:block tw:m-0 tw:p-0"><code 
+    id="codeblock-id-10" 
+    class="
+      chroma 
+      tw:block! 
+      tw:p-0
+      tw:m-0
+      tw:transition-[max-height] 
+      tw:duration-500 
+      tw:ease-in-out 
+      tw:group-[.is-closed]:max-h-0! 
+      tw:group-[.is-wrap]:text-wrap
+      tw:overflow-y-hidden
+      tw:overflow-x-auto
+      tw:scrollbar-thin
+      "><span class="line"><span class="cl"><span class="kt">void</span> <span class="o">*</span><span class="nf">mm_realloc</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">size</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">ptr</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nf">mm_malloc</span><span class="p">(</span><span class="n">size</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">mm_free</span><span class="p">(</span><span class="n">ptr</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">asize</span> <span class="o">=</span> <span class="nf">ALIGN</span><span class="p">(</span><span class="n">size</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">asize</span> <span class="o">+=</span> <span class="mi">16</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">initial_chunk_size</span> <span class="o">=</span> <span class="nf">GET_SIZE</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">ptr</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/* 
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * if asize is less than or equal to the size of chunk pointed to by ptr 
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * then shrink the chunk and free the residual chunk if size of residual
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * chunk is greater or equal to minimum chunk size. no need to copy any 
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * payload contents 
+</span></span></span><span class="line"><span class="cl"><span class="cm">     */</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">asize</span> <span class="o">&lt;=</span> <span class="n">initial_chunk_size</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">size_t</span> <span class="n">residual_size</span> <span class="o">=</span> <span class="n">initial_chunk_size</span> <span class="o">-</span> <span class="n">asize</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">residual_size</span> <span class="o">&gt;=</span> <span class="n">MIN_CHUNK_SIZE</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">ptr</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">asize</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">PUT</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="n">ptr</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">asize</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">            
+</span></span><span class="line"><span class="cl">            <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">ptr</span><span class="p">)),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">residual_size</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">PUT</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">ptr</span><span class="p">)),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">residual_size</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">insert_at_head</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">ptr</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">coalesce</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">ptr</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="n">ptr</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">ptr</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/* 
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * If next chunk after current chunk is free and it will satisfy the chunk
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * size requirement then absorb the next chunk and see if the residual size
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * is greater or equal to MIN_CHUNK_SIZE, if yes then mark it free and add
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * it to the free list
+</span></span></span><span class="line"><span class="cl"><span class="cm">     */</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">is_next_chunk_freed</span> <span class="o">=</span> <span class="o">!</span><span class="p">(</span><span class="nf">GET_ALLOC</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">ptr</span><span class="p">))));</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">next_chunk_size</span> <span class="o">=</span> <span class="nf">GET_SIZE</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">ptr</span><span class="p">)));</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">new_chunk_size</span> <span class="o">=</span> <span class="n">initial_chunk_size</span> <span class="o">+</span> <span class="n">next_chunk_size</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">is_next_chunk_freed</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">initial_chunk_size</span> <span class="o">+</span> <span class="n">next_chunk_size</span> <span class="o">&gt;=</span> <span class="n">asize</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">unlink_chunk</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">ptr</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">ptr</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">new_chunk_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="n">ptr</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">new_chunk_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="kt">size_t</span> <span class="n">residual_size</span> <span class="o">=</span> <span class="nf">GET_SIZE</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">ptr</span><span class="p">))</span> <span class="o">-</span> <span class="n">asize</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">residual_size</span> <span class="o">&gt;=</span> <span class="n">MIN_CHUNK_SIZE</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">ptr</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">asize</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">PUT</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="n">ptr</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">asize</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">            <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">ptr</span><span class="p">)),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">residual_size</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">PUT</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">ptr</span><span class="p">)),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">residual_size</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">insert_at_head</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">ptr</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">coalesce</span><span class="p">(</span><span class="nf">NEXT_BLKP</span><span class="p">(</span><span class="n">ptr</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">ptr</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/*
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * if next chunk is the epilogue then extend the heap and the absorb the 
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * newly created free block 
+</span></span></span><span class="line"><span class="cl"><span class="cm">     */</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">is_next_chunk_freed</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">next_chunk_size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">size_t</span> <span class="n">deficit</span> <span class="o">=</span> <span class="n">asize</span> <span class="o">-</span> <span class="n">initial_chunk_size</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//deficit = ALIGN(deficit) + 16;
+</span></span></span><span class="line"><span class="cl">        <span class="kt">void</span> <span class="o">*</span><span class="n">nbk</span> <span class="o">=</span> <span class="nf">extend_heap</span><span class="p">(</span><span class="n">deficit</span><span class="o">/</span><span class="n">DSIZE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">nbk</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="nf">unlink_chunk</span><span class="p">(</span><span class="n">nbk</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">size_t</span> <span class="n">nsize</span> <span class="o">=</span> <span class="n">initial_chunk_size</span> <span class="o">+</span> <span class="nf">GET_SIZE</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">nbk</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">ptr</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">nsize</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">PUT</span><span class="p">(</span><span class="nf">FTRP</span><span class="p">(</span><span class="n">ptr</span><span class="p">),</span> <span class="nf">PACK</span><span class="p">(</span><span class="n">nsize</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">ptr</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/*
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * last case if we can&#39;t find and absorb any next chunk then malloc a new
+</span></span></span><span class="line"><span class="cl"><span class="cm">     * chunk and copy the contents there and free the old chunk 
+</span></span></span><span class="line"><span class="cl"><span class="cm">     */</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">void</span> <span class="o">*</span><span class="n">oldptr</span> <span class="o">=</span> <span class="n">ptr</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">void</span> <span class="o">*</span><span class="n">newptr</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">copySize</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="n">newptr</span> <span class="o">=</span> <span class="nf">mm_malloc</span><span class="p">(</span><span class="n">size</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">newptr</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">copySize</span> <span class="o">=</span> <span class="nf">GET_SIZE</span><span class="p">(</span><span class="nf">HDRP</span><span class="p">(</span><span class="n">ptr</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">copySize</span> <span class="o">=</span> <span class="n">copySize</span> <span class="o">-</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">DSIZE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">size</span> <span class="o">&lt;</span> <span class="n">copySize</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="n">copySize</span> <span class="o">=</span> <span class="n">size</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="nf">memcpy</span><span class="p">(</span><span class="n">newptr</span><span class="p">,</span> <span class="n">oldptr</span><span class="p">,</span> <span class="n">copySize</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">mm_free</span><span class="p">(</span><span class="n">oldptr</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">newptr</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span></span></span></code></pre>
+</div>
+<ul>
+<li>It checks if the chunk to reallocate is a null pointer or the requested size is 0, if yes it acts as <code>mm_malloc(size)</code> and <code>mm_free(ptr)</code> respectively.</li>
+<li>It aligns the requested size to 8 byte alignment policy and adds the size of header and footer field to it.</li>
+<li>If the requested size is less than the size of chunk pointed to by <code>ptr</code>, it frees the residual chunk, insert it to the free list and coalesce to adjacent freed chunks.</li>
+<li>If next chunk after current chunk is free and it can satisfy the chunk size requirement then it absorbs the next chunk and if the residual size is greater than or equal to the <code>MIN_CHUNK_SIZE</code> then it marks it free and adds it to the free list.</li>
+<li>If the next chunk is the epilogue then it extends the heap and then absorbs the newly created free block</li>
+<li>If it can&rsquo;t find and absorb the next chunk then it <code>mm_malloc</code> a new chunk of new size and copies the data at memory pointed to by <code>ptr</code> to there and then it <code>mm_free</code> the old chunk.</li>
+</ul>
+<h2 id="final-thoughts" class="headerLink">
+    <a href="#final-thoughts" class="header-mark"></a>Final thoughts</h2><p><img class="tw:inline" loading="lazy" src='score.jpg'   alt="score"  ></p>
+<p>My implementation scored 84 out of 100 by the CMU&rsquo;s driver that came with the lab handout, which is a nice score. But there is place for optimisations. First thing that comes in my mind is that i barely use the footer field in my implementation so i can maybe remove it from my design that will increase mu utilisation score. Other is that in <code>mm_realloc</code> i can introduce a case of if the previous adjacent chunk is free and satisfies the size requirement.</p>
+<p>Perhaps I can optimise it further later.</p>
+</div>
+
+        <div class="post-footer" id="post-footer">
+    <div class="post-info">
+        <div class="post-info-line">
+            <div class="post-info-mod">
+                <span>Updated on 0001-01-01</span>
+            </div>
+            <div class="post-info-license"></div>
+        </div>
+        <div class="post-info-line tw:print:hidden!">
+            <div class="post-info-md"></div>
+            <div class="post-info-share"></div>
+        </div>
+    </div>
+
+    <div class="post-info-more">
+        <div class="post-tags"></div>
+        <div class="tw:print:hidden!">
+            <span><button class="tw:text-fgColor-link-muted tw:hover:text-fgColor-link-muted-hover" onclick="window.history.back();">Back</button></span>&nbsp;|&nbsp;<span><a href="/">Home</a></span>
+        </div>
+    </div>
+
+    <div class="post-nav tw:print:hidden">
+            <a href="/posts/reverse-engineering-a-risc-v-binary-picoctf-riscy-business/" class="next" rel="next" title="Reverse engineering a RISC-V binary picoCTF riscy business">Reverse engineering a RISC-V binary picoCTF riscy business<svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M224.3 273l-136 136c-9.4 9.4-24.6 9.4-33.9 0l-22.6-22.6c-9.4-9.4-9.4-24.6 0-33.9l96.4-96.4-96.4-96.4c-9.4-9.4-9.4-24.6 0-33.9L54.3 103c9.4-9.4 24.6-9.4 33.9 0l136 136c9.5 9.4 9.5 24.6.1 34z"/></svg></a></div>
+</div>
+</article></main><footer class="footer">
+        <div class="footer-container"><div class="footer-line">
+                    Powered by <a href="https://gohugo.io/" target="_blank" rel="noopener noreferrer" title="Hugo 0.160.1">Hugo</a>&nbsp;|&nbsp;Theme - <a href="https://github.com/HEIGE-PCloud/DoIt" target="_blank" rel="noopener noreferrer" title="DoIt 1.0.2"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M402.3 344.9l32-32c5-5 13.7-1.5 13.7 5.7V464c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V112c0-26.5 21.5-48 48-48h273.5c7.1 0 10.7 8.6 5.7 13.7l-32 32c-1.5 1.5-3.5 2.3-5.7 2.3H48v352h352V350.5c0-2.1.8-4.1 2.3-5.6zm156.6-201.8L296.3 405.7l-90.4 10c-26.2 2.9-48.5-19.2-45.6-45.6l10-90.4L432.9 17.1c22.9-22.9 59.9-22.9 82.7 0l43.2 43.2c22.9 22.9 22.9 60 .1 82.8zM460.1 174L402 115.9 216.2 301.8l-7.3 65.3 65.3-7.3L460.1 174zm64.8-79.7l-43.2-43.2c-4.1-4.1-10.8-4.1-14.8 0L436 82l58.1 58.1 30.9-30.9c4-4.2 4-10.8-.1-14.9z"/></svg> DoIt</a>
+                </div><div class="footer-line"><svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M256 8C119.033 8 8 119.033 8 256s111.033 248 248 248 248-111.033 248-248S392.967 8 256 8zm0 448c-110.532 0-200-89.451-200-200 0-110.531 89.451-200 200-200 110.532 0 200 89.451 200 200 0 110.532-89.451 200-200 200zm107.351-101.064c-9.614 9.712-45.53 41.396-104.065 41.396-82.43 0-140.484-61.425-140.484-141.567 0-79.152 60.275-139.401 139.762-139.401 55.531 0 88.738 26.62 97.593 34.779a11.965 11.965 0 0 1 1.936 15.322l-18.155 28.113c-3.841 5.95-11.966 7.282-17.499 2.921-8.595-6.776-31.814-22.538-61.708-22.538-48.303 0-77.916 35.33-77.916 80.082 0 41.589 26.888 83.692 78.277 83.692 32.657 0 56.843-19.039 65.726-27.225 5.27-4.857 13.596-4.039 17.82 1.738l19.865 27.17a11.947 11.947 0 0 1-1.152 15.518z"/></svg>2026<span class="author">&nbsp;<a href="https://github.com/0xanubian" target="_blank" rel="noopener noreferrer">Anubian</a></span></div>
+            <div class="footer-line"></div>
+            <div class="footer-line">
+            </div>
+        </div></footer><div class="tw:print:hidden! tw:flex tw:flex-col tw:fixed tw:right-4 tw:bottom-4 tw:gap-2"><a href="#back-to-top" id="back-to-top-button" class="tw:transition-opacity tw:opacity-0 tw:block tw:bg-bgColor-secondary tw:rounded-full" style="padding: 0.6rem; line-height: 1.3rem; font-size: 1rem;" title="Back to Top">
+      <svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M34.9 289.5l-22.2-22.2c-9.4-9.4-9.4-24.6 0-33.9L207 39c9.4-9.4 24.6-9.4 33.9 0l194.3 194.3c9.4 9.4 9.4 24.6 0 33.9L413 289.4c-9.5 9.5-25 9.3-34.3-.4L264 168.6V456c0 13.3-10.7 24-24 24h-32c-13.3 0-24-10.7-24-24V168.6L69.2 289.1c-9.3 9.8-24.8 10-34.3.4z"/></svg>
+  </a>
+
+  <button id="toc-drawer-button" class="tw:block tw:bg-bgColor-secondary tw:rounded-full tw:md:hidden" style="padding: 0.6rem; line-height: 1.3rem; font-size: 1rem;">
+      <svg class="icon"
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!-- Font Awesome Free 5.15.4 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) --><path d="M16 132h416c8.837 0 16-7.163 16-16V76c0-8.837-7.163-16-16-16H16C7.163 60 0 67.163 0 76v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16zm0 160h416c8.837 0 16-7.163 16-16v-40c0-8.837-7.163-16-16-16H16c-8.837 0-16 7.163-16 16v40c0 8.837 7.163 16 16 16z"/></svg>
+  </button></div>
+
+<script>window.config={"comment":{}};</script><script
+    src="/js/theme.min.js"
+    
+      defer
+    
+  ></script>
+
+<script type="speculationrules">
+  {
+    "prerender": [
+      {
+        "where": { "href_matches": "/*" },
+        "eagerness": "moderate"
+      }
+    ]
+  }
+</script>
+</body>
+
+</html>
